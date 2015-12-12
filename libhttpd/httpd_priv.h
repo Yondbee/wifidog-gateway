@@ -66,8 +66,8 @@ extern "C" {
     void _httpd_writeAccessLog __ANSI_PROTO((httpd *, request *));
     void _httpd_writeErrorLog __ANSI_PROTO((httpd *, request *, char *, char *));
 
-    int _httpd_net_read __ANSI_PROTO((int, char *, int));
-    int _httpd_net_write __ANSI_PROTO((int, char *, int));
+    int _httpd_net_read __ANSI_PROTO((request *, char *, int));
+    int _httpd_net_write __ANSI_PROTO((request *, char *, int));
     int _httpd_readBuf __ANSI_PROTO((request *, char *, int));
     int _httpd_readChar __ANSI_PROTO((request *, char *));
     int _httpd_readLine __ANSI_PROTO((request *, char *, int));

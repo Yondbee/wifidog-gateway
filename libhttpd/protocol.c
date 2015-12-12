@@ -38,13 +38,13 @@
 #include "httpd_priv.h"
 
 int
-_httpd_net_read(sock, buf, len)
-int sock;
+_httpd_net_read(r, buf, len)
+request *r;
 char *buf;
 int len;
 {
 #if defined(_WIN32)
-    return (recv(sock, buf, len, 0));
+    return (recv(r->clientSock, buf, len, 0));
 #else
     /*return( read(sock, buf, len)); */
     /* XXX Select based IO */
@@ -54,30 +54,42 @@ int len;
     struct timeval timeout;
 
     FD_ZERO(&readfds);
-    FD_SET(sock, &readfds);
+    FD_SET(r->clientSock, &readfds);
     timeout.tv_sec = 10;
     timeout.tv_usec = 0;
-    nfds = sock + 1;
+    nfds = r->clientSock + 1;
 
     nfds = select(nfds, &readfds, NULL, NULL, &timeout);
 
     if (nfds > 0) {
-        return (read(sock, buf, len));
+#ifdef USE_CYASSL
+        // it means this is an ssl socket, so read from ssl
+        if (r->cyassl_obj != NULL)
+            return CyaSSL_read( r->cyassl_obj, buf, len );
+#endif
+        return (read(r->clientSock, buf, len));
     }
     return (nfds);
 #endif
 }
 
 int
-_httpd_net_write(sock, buf, len)
-int sock;
+_httpd_net_write(r, buf, len)
+request *r;
 char *buf;
 int len;
 {
 #if defined(_WIN32)
-    return (send(sock, buf, len, 0));
+    return (send(r->clientSock, buf, len, 0));
 #else
-    return (write(sock, buf, len));
+    
+#ifdef USE_CYASSL
+    // it means this is an ssl socket, so write to ssl
+    if (r->cyassl_obj != NULL)
+        return CyaSSL_write( r->cyassl_obj, buf, len );
+#endif
+    
+    return (write(r->clientSock, buf, len));
 #endif
 }
 
@@ -86,7 +98,7 @@ _httpd_readChar(request * r, char *cp)
 {
     if (r->readBufRemain == 0) {
         bzero(r->readBuf, HTTP_READ_BUF_LEN + 1);
-        r->readBufRemain = _httpd_net_read(r->clientSock, r->readBuf, HTTP_READ_BUF_LEN);
+        r->readBufRemain = _httpd_net_read(r, r->readBuf, HTTP_READ_BUF_LEN);
         if (r->readBufRemain < 1)
             return (0);
         r->readBuf[r->readBufRemain] = 0;
@@ -391,32 +403,32 @@ _httpd_sendHeaders(request * r, int contentLength, int modTime)
         return;
 
     r->response.headersSent = 1;
-    _httpd_net_write(r->clientSock, "HTTP/1.0 ", 9);
-    _httpd_net_write(r->clientSock, r->response.response, strlen(r->response.response));
-    _httpd_net_write(r->clientSock, r->response.headers, strlen(r->response.headers));
+    _httpd_net_write(r, "HTTP/1.0 ", 9);
+    _httpd_net_write(r, r->response.response, strlen(r->response.response));
+    _httpd_net_write(r, r->response.headers, strlen(r->response.headers));
 
     _httpd_formatTimeString(timeBuf, 0);
-    _httpd_net_write(r->clientSock, "Date: ", 6);
-    _httpd_net_write(r->clientSock, timeBuf, strlen(timeBuf));
-    _httpd_net_write(r->clientSock, "\n", 1);
+    _httpd_net_write(r, "Date: ", 6);
+    _httpd_net_write(r, timeBuf, strlen(timeBuf));
+    _httpd_net_write(r, "\n", 1);
 
-    _httpd_net_write(r->clientSock, "Connection: close\n", 18);
-    _httpd_net_write(r->clientSock, "Content-Type: ", 14);
-    _httpd_net_write(r->clientSock, r->response.contentType, strlen(r->response.contentType));
-    _httpd_net_write(r->clientSock, "\n", 1);
+    _httpd_net_write(r, "Connection: close\n", 18);
+    _httpd_net_write(r, "Content-Type: ", 14);
+    _httpd_net_write(r, r->response.contentType, strlen(r->response.contentType));
+    _httpd_net_write(r, "\n", 1);
 
     if (contentLength > 0) {
-        _httpd_net_write(r->clientSock, "Content-Length: ", 16);
+        _httpd_net_write(r, "Content-Length: ", 16);
         snprintf(tmpBuf, sizeof(tmpBuf), "%d", contentLength);
-        _httpd_net_write(r->clientSock, tmpBuf, strlen(tmpBuf));
-        _httpd_net_write(r->clientSock, "\n", 1);
+        _httpd_net_write(r, tmpBuf, strlen(tmpBuf));
+        _httpd_net_write(r, "\n", 1);
 
         _httpd_formatTimeString(timeBuf, modTime);
-        _httpd_net_write(r->clientSock, "Last-Modified: ", 15);
-        _httpd_net_write(r->clientSock, timeBuf, strlen(timeBuf));
-        _httpd_net_write(r->clientSock, "\n", 1);
+        _httpd_net_write(r, "Last-Modified: ", 15);
+        _httpd_net_write(r, timeBuf, strlen(timeBuf));
+        _httpd_net_write(r, "\n", 1);
     }
-    _httpd_net_write(r->clientSock, "\n", 1);
+    _httpd_net_write(r, "\n", 1);
 }
 
 httpDir *
@@ -538,7 +550,7 @@ _httpd_catFile(request * r, const char *path)
     len = read(fd, buf, HTTP_MAX_LEN);
     while (len > 0) {
         r->response.responseLength += len;
-        _httpd_net_write(r->clientSock, buf, len);
+        _httpd_net_write(r, buf, len);
         len = read(fd, buf, HTTP_MAX_LEN);
     }
     close(fd);
@@ -599,7 +611,7 @@ void
 _httpd_sendText(request * r, char *msg)
 {
     r->response.responseLength += strlen(msg);
-    _httpd_net_write(r->clientSock, msg, strlen(msg));
+    _httpd_net_write(r, msg, strlen(msg));
 }
 
 int

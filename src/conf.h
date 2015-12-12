@@ -44,6 +44,7 @@
 #define DEFAULT_HTTPDMAXCONN 10
 #define DEFAULT_GATEWAYID NULL
 #define DEFAULT_GATEWAYPORT 2060
+#define DEFAULT_GATEWAYSSLPORT 0 // 0 means disabled
 #define DEFAULT_HTTPDNAME "WiFiDog"
 #define DEFAULT_CLIENTTIMEOUT 5
 #define DEFAULT_CHECKINTERVAL 60
@@ -172,6 +173,7 @@ typedef struct {
     char *gw_address;           /**< @brief Internal IP address for our web
 				     server */
     int gw_port;                /**< @brief Port the webserver will run on */
+    int gw_ssl_port;            /**< @brief Port the webserver will run on (SSL) */
 
     t_auth_serv *auth_servers;  /**< @brief Auth servers list */
     char *httpdname;            /**< @brief Name the web server will return when

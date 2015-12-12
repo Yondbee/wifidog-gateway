@@ -39,6 +39,7 @@
 #ifdef USE_CYASSL
 #include <cyassl/ssl.h>
 #include "conf.h"
+#include "safe.h"
 /* For CYASSL_MAX_ERROR_SZ */
 #include <cyassl/ctaocrypt/types.h>
 /* For COMPRESS_E */
@@ -156,6 +157,7 @@ get_cyassl_ctx(const char *hostname)
     int err;
     CYASSL_CTX *ret;
     s_config *config = config_get_config();
+    char *certPath;
 
     LOCK_CYASSL_CTX();
 
@@ -213,6 +215,29 @@ get_cyassl_ctx(const char *hostname)
         } else {
             CyaSSL_CTX_set_verify(cyassl_ctx, SSL_VERIFY_NONE, 0);
             debug(LOG_INFO, "Disabling SSL certificate verification!");
+        }
+        
+        if (config->gw_ssl_port != 0)
+        {
+            safe_asprintf(&certPath, "%s%s", config->ssl_certs, "wifidog-cert.pem");
+            debug(LOG_INFO, "[SSLGW] Loading SSL server cert from %s", certPath);
+            err = CyaSSL_CTX_use_certificate_file( cyassl_ctx, certPath, SSL_FILETYPE_PEM );
+            free(certPath);
+            if (SSL_SUCCESS != err) {
+                debug(LOG_ERR, "[SSLGW] Could not load SSL server cert (error %d)", err);
+                UNLOCK_CYASSL_CTX();
+                return NULL;
+            }
+            
+            safe_asprintf(&certPath, "%s%s", config->ssl_certs, "wifidog-key.pem");
+            debug(LOG_INFO, "[SSLGW] Loading SSL server cert from %s", certPath);
+            err = CyaSSL_CTX_use_PrivateKey_file( cyassl_ctx, certPath, SSL_FILETYPE_PEM );
+            free(certPath);
+            if (SSL_SUCCESS != err) {
+                debug(LOG_ERR, "[SSLGW] Could not load SSL server cert (error %d)", err);
+                UNLOCK_CYASSL_CTX();
+                return NULL;
+            }
         }
     }
 

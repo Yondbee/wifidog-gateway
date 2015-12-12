@@ -73,6 +73,7 @@ typedef enum {
     oGatewayInterface,
     oGatewayAddress,
     oGatewayPort,
+    oGatewaySslPort,
     oDeltaTraffic,
     oAuthServer,
     oAuthServHostname,
@@ -121,6 +122,7 @@ static const struct {
     "gatewayinterface", oGatewayInterface}, {
     "gatewayaddress", oGatewayAddress}, {
     "gatewayport", oGatewayPort}, {
+    "gatewaysslport", oGatewaySslPort}, {
     "authserver", oAuthServer}, {
     "httpdmaxconn", oHTTPDMaxConn}, {
     "httpdname", oHTTPDName}, {
@@ -187,6 +189,7 @@ config_init(void)
     config.gw_interface = NULL;
     config.gw_address = NULL;
     config.gw_port = DEFAULT_GATEWAYPORT;
+    config.gw_ssl_port = DEFAULT_GATEWAYSSLPORT;
     config.auth_servers = NULL;
     config.httpdname = NULL;
     config.httpdrealm = DEFAULT_HTTPDNAME;
@@ -725,6 +728,9 @@ config_read(const char *filename)
                     break;
                 case oGatewayPort:
                     sscanf(p1, "%d", &config.gw_port);
+                    break;
+                case oGatewaySslPort:
+                    sscanf(p1, "%d", &config.gw_ssl_port);
                     break;
                 case oAuthServer:
                     parse_auth_server(fd, filename, &linenum);

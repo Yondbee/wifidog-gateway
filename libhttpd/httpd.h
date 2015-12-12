@@ -45,6 +45,12 @@
 #include <sys/types.h>
 #endif
 
+#ifdef USE_CYASSL
+    #include <cyassl/ssl.h>
+    #include <cyassl/ctaocrypt/types.h>
+    #include <cyassl/ctaocrypt/error-crypt.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -134,7 +140,7 @@ extern "C" {
     } httpAcl;
 
     typedef struct {
-        int port, serverSock, startTime, lastError;
+        int port, serverSock, startTime, lastError, sslPort, sslSock;
         char fileBasePath[HTTP_MAX_URL], *host;
         httpDir *content;
         httpAcl *defaultAcl;
@@ -148,6 +154,9 @@ extern "C" {
         httpRes response;
         httpVar *variables;
         char readBuf[HTTP_READ_BUF_LEN + 1], *readBufPtr, clientAddr[HTTP_IP_ADDR_LEN];
+#ifdef USE_CYASSL
+        CYASSL *cyassl_obj;
+#endif
     } request;
 
 /***********************************************************************
@@ -176,7 +185,7 @@ extern "C" {
     void httpdSetResponse __ANSI_PROTO((request *, const char *));
     void httpdEndRequest __ANSI_PROTO((request *));
 
-    httpd *httpdCreate __ANSI_PROTO(());
+    httpd *httpdCreate __ANSI_PROTO((const char *, int, int, void *));
     void httpdFreeVariables __ANSI_PROTO((request *));
     void httpdDumpVariables __ANSI_PROTO((request *));
     void httpdOutput __ANSI_PROTO((request *, const char *));

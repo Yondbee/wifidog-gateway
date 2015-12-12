@@ -48,6 +48,10 @@
 #include <varargs.h>
 #endif
 
+#ifdef USE_CYASSL
+    static CYASSL_CTX *local_cyassl_ctx = NULL;
+#endif
+
 char *
 httpdUrlEncode(str)
 const char *str;
@@ -194,13 +198,15 @@ httpdAddVariable(request * r, const char *name, const char *value)
 }
 
 httpd *
-httpdCreate(host, port)
-char *host;
+httpdCreate(host, port, ssl_port, cyassl_ctx)
+const char *host;
 int port;
+int ssl_port;
+void *cyassl_ctx;
 {
     httpd *new;
-    int sock, opt;
-    struct sockaddr_in addr;
+    int sock, opt, sslsock, sslopt;
+    struct sockaddr_in addr, ssladdr;
 
     /*
      ** Create the handle and setup it's basic config
@@ -210,6 +216,7 @@ int port;
         return (NULL);
     bzero(new, sizeof(httpd));
     new->port = port;
+    new->sslPort = ssl_port;
     if (host == HTTP_ANY_ADDR)
         new->host = HTTP_ANY_ADDR;
     else
@@ -217,6 +224,9 @@ int port;
     new->content = (httpDir *) malloc(sizeof(httpDir));
     bzero(new->content, sizeof(httpDir));
     new->content->name = strdup("");
+    
+    // set ssl sock to zero by default
+    new->sslSock = 0;
 
     /*
      ** Setup the socket
@@ -285,6 +295,59 @@ int port;
         return (NULL);
     }
     listen(sock, 128);
+    
+    /* SSL Socket Implementation */
+#ifdef USE_CYASSL
+    
+    if (cyassl_ctx == NULL)
+    {
+        close(sock);
+        free(new);
+        return (NULL);
+    }
+    
+    local_cyassl_ctx = (CYASSL_CTX *)cyassl_ctx;
+    
+    if (new->sslPort != 0)
+    {
+        sslsock = socket(AF_INET, SOCK_STREAM, 0);
+        if (sslsock < 0) {
+            close(sock);
+            free(new);
+            return (NULL);
+        }
+        
+#	ifdef SO_REUSEADDR
+        sslopt = 1;
+        if (setsockopt(sslsock, SOL_SOCKET, SO_REUSEADDR, (char *)&sslopt, sizeof(int)) < 0) {
+            close(sslsock);
+            close(sock);
+            free(new);
+            return NULL;
+        }
+#	endif
+        
+        new->sslSock = sock;
+        bzero(&ssladdr, sizeof(ssladdr));
+        ssladdr.sin_family = AF_INET;
+        if (new->host == HTTP_ANY_ADDR) {
+            ssladdr.sin_addr.s_addr = htonl(INADDR_ANY);
+        } else {
+            ssladdr.sin_addr.s_addr = inet_addr(new->host);
+        }
+        ssladdr.sin_port = htons((u_short) new->sslPort);
+        if (bind(sslsock, (struct sockaddr *)&ssladdr, sizeof(ssladdr)) < 0) {
+            close(sslsock);
+            close(sock);
+            free(new);
+            return (NULL);
+        }
+        
+        listen(sslsock, 128);
+    }
+    
+#endif
+    
     new->startTime = time(NULL);
     return (new);
 }
@@ -305,7 +368,7 @@ httpdGetConnection(server, timeout)
 httpd *server;
 struct timeval *timeout;
 {
-    int result;
+    int result, maxDesc;
     fd_set fds;
     struct sockaddr_in addr;
     socklen_t addrLen;
@@ -315,9 +378,20 @@ struct timeval *timeout;
     server->lastError = 0;
     FD_ZERO(&fds);
     FD_SET(server->serverSock, &fds);
+    maxDesc = server->serverSock;
+    /* SSL SOCKET SUPPORT */
+#ifdef USE_CYASSL
+    // listen on ssl socket as well, if open
+    if (server->sslSock != 0)
+    {
+        FD_SET(server->sslSock, &fds);
+        maxDesc = maxDesc > server->sslSock ? maxDesc : server->sslSock;
+    }
+#endif
+    
     result = 0;
     while (result == 0) {
-        result = select(server->serverSock + 1, &fds, 0, 0, timeout);
+        result = select(maxDesc + 1, &fds, 0, 0, timeout);
         if (result < 0) {
             server->lastError = -1;
             return (NULL);
@@ -330,37 +404,99 @@ struct timeval *timeout;
             break;
         }
     }
-    /* Allocate request struct */
-    r = (request *) malloc(sizeof(request));
-    if (r == NULL) {
-        server->lastError = -3;
-        return (NULL);
-    }
-    memset((void *)r, 0, sizeof(request));
-    /* Get on with it */
-    bzero(&addr, sizeof(addr));
-    addrLen = sizeof(addr);
-    r->clientSock = accept(server->serverSock, (struct sockaddr *)&addr, &addrLen);
-    ipaddr = inet_ntoa(addr.sin_addr);
-    if (ipaddr) {
-        strncpy(r->clientAddr, ipaddr, HTTP_IP_ADDR_LEN);
-        r->clientAddr[HTTP_IP_ADDR_LEN - 1] = 0;
-    } else
-        *r->clientAddr = 0;
-    r->readBufRemain = 0;
-    r->readBufPtr = NULL;
-
-    /*
-     ** Check the default ACL
-     */
-    if (server->defaultAcl) {
-        if (httpdCheckAcl(server, r, server->defaultAcl)
-            == HTTP_ACL_DENY) {
-            httpdEndRequest(r);
-            server->lastError = 2;
+    
+    // HTTP socket
+    if (FD_ISSET(server->serverSock, &fds))
+    {
+    
+        /* Allocate request struct */
+        r = (request *) malloc(sizeof(request));
+        if (r == NULL) {
+            server->lastError = -3;
             return (NULL);
         }
+        memset((void *)r, 0, sizeof(request));
+        /* Get on with it */
+        bzero(&addr, sizeof(addr));
+        addrLen = sizeof(addr);
+        r->clientSock = accept(server->serverSock, (struct sockaddr *)&addr, &addrLen);
+        ipaddr = inet_ntoa(addr.sin_addr);
+        if (ipaddr) {
+            strncpy(r->clientAddr, ipaddr, HTTP_IP_ADDR_LEN);
+            r->clientAddr[HTTP_IP_ADDR_LEN - 1] = 0;
+        } else
+            *r->clientAddr = 0;
+        r->readBufRemain = 0;
+        r->readBufPtr = NULL;
+        
+        /*
+         ** Check the default ACL
+         */
+        if (server->defaultAcl) {
+            if (httpdCheckAcl(server, r, server->defaultAcl)
+                == HTTP_ACL_DENY) {
+                httpdEndRequest(r);
+                server->lastError = 2;
+                return (NULL);
+            }
+        }
     }
+
+#ifdef USE_CYASSL
+    // HTTPs socket
+    else if (FD_ISSET(server->serverSock, &fds))
+    {
+        
+        /* Allocate request struct */
+        r = (request *) malloc(sizeof(request));
+        if (r == NULL) {
+            server->lastError = -3;
+            return (NULL);
+        }
+        memset((void *)r, 0, sizeof(request));
+        /* Get on with it */
+        bzero(&addr, sizeof(addr));
+        addrLen = sizeof(addr);
+        r->clientSock = accept(server->sslSock, (struct sockaddr *)&addr, &addrLen);
+        ipaddr = inet_ntoa(addr.sin_addr);
+        if (ipaddr) {
+            strncpy(r->clientAddr, ipaddr, HTTP_IP_ADDR_LEN);
+            r->clientAddr[HTTP_IP_ADDR_LEN - 1] = 0;
+        } else
+            *r->clientAddr = 0;
+
+        r->readBufRemain = 0;
+        r->readBufPtr = NULL;
+        r->cyassl_obj = CyaSSL_new( local_cyassl_ctx );
+        
+        if( r->cyassl_obj == NULL )
+        {
+            server->lastError = -4;
+            close(r->clientSock);
+            return (NULL);
+        }
+        
+        CyaSSL_set_fd( r->cyassl_obj, r->clientSock );
+        
+        /*
+         ** Check the default ACL
+         */
+        if (server->defaultAcl) {
+            if (httpdCheckAcl(server, r, server->defaultAcl)
+                == HTTP_ACL_DENY) {
+                httpdEndRequest(r);
+                server->lastError = 2;
+                return (NULL);
+            }
+        }
+    }
+#endif
+    else
+    {
+        // could not accept connection...
+        r = NULL;
+    }
+    
     return (r);
 }
 
@@ -405,8 +541,8 @@ httpdReadRequest(httpd * server, request * r)
             if (strcasecmp(cp, "POST") == 0)
                 r->request.method = HTTP_POST;
             if (r->request.method == 0) {
-                _httpd_net_write(r->clientSock, HTTP_METHOD_ERROR, strlen(HTTP_METHOD_ERROR));
-                _httpd_net_write(r->clientSock, cp, strlen(cp));
+                _httpd_net_write(r, HTTP_METHOD_ERROR, strlen(HTTP_METHOD_ERROR));
+                _httpd_net_write(r, cp, strlen(cp));
                 _httpd_writeErrorLog(server, r, LEVEL_ERROR, "Invalid method received");
                 return (-1);
             }
@@ -492,8 +628,15 @@ void
 httpdEndRequest(request * r)
 {
     _httpd_freeVariables(r->variables);
+    
+#ifdef USE_CYASSL
+    if (r->cyassl_obj != NULL)
+        CyaSSL_free( r->cyassl_obj );
+#endif
+    
     shutdown(r->clientSock, 2);
     close(r->clientSock);
+    
     free(r);
 }
 
@@ -760,7 +903,7 @@ httpdOutput(request * r, const char *msg)
     r->response.responseLength += strlen(buf);
     if (r->response.headersSent == 0)
         httpdSendHeaders(r);
-    _httpd_net_write(r->clientSock, buf, strlen(buf));
+    _httpd_net_write(r, buf, strlen(buf));
 }
 
 #ifdef HAVE_STDARG_H
@@ -790,7 +933,7 @@ va_dcl
     vsnprintf(buf, HTTP_MAX_LEN, fmt, args);
     va_end(args); /* Works with both stdargs.h and varargs.h */
     r->response.responseLength += strlen(buf);
-    _httpd_net_write(r->clientSock, buf, strlen(buf));
+    _httpd_net_write(r, buf, strlen(buf));
 }
 
 void

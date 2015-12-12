@@ -391,9 +391,19 @@ main_loop(void)
         debug(LOG_DEBUG, "%s = %s", config->gw_interface, config->gw_id);
     }
 
+    void *sslContext = NULL;
+    
+#ifdef USE_CYASSL
+    sslContext = get_cyassl_ctx();
+#endif
+    
     /* Initializes the web server */
-    debug(LOG_NOTICE, "Creating web server on %s:%d", config->gw_address, config->gw_port);
-    if ((webserver = httpdCreate(config->gw_address, config->gw_port)) == NULL) {
+    debug(LOG_NOTICE, "Creating web server on %s:%d (SSL %d)",
+                      config->gw_address,
+                      config->gw_port,
+                      config->gw_ssl_port);
+    if ((webserver = httpdCreate(config->gw_address, config->gw_port,
+                                 config->gw_ssl_port, sslContext)) == NULL) {
         debug(LOG_ERR, "Could not create web server: %s", strerror(errno));
         exit(1);
     }
