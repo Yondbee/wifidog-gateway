@@ -47,7 +47,16 @@
 #include <net/ethernet.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
-#include <netpacket/packet.h>
+
+// Check if we have support for AF_LINK.
+// It's the only one available on MAC OS X.
+#ifdef AF_LINK
+#   include <net/if_dl.h>
+#   include <ifaddrs.h>
+#endif
+#ifdef AF_PACKET
+#   include <netpacket/packet.h>
+#endif
 
 #include <string.h>
 #include <netdb.h>
@@ -197,6 +206,7 @@ get_iface_ip(const char *ifname)
     return safe_strdup(ip_str);
 }
 
+#ifdef AF_PACKET
 char *
 get_iface_mac(const char *ifname)
 {
@@ -228,6 +238,42 @@ get_iface_mac(const char *ifname)
 
     return safe_strdup(mac);
 }
+#elif defined(AF_LINK)
+char *
+get_iface_mac(const char *ifname)
+{
+    struct ifaddrs *ifap, *ifaptr;
+    char *ptr, mac[13];
+    
+    if (getifaddrs(&ifap) == 0) {
+        
+        ifaptr = NULL;
+        for(ifaptr = ifap; ifaptr != NULL; ifaptr = (ifaptr)->ifa_next) {
+            if (!strcmp((ifaptr)->ifa_name, ifname) && (((ifaptr)->ifa_addr)->sa_family == AF_LINK)) {
+                ptr = (char *)LLADDR((struct sockaddr_dl *)(ifaptr)->ifa_addr);
+                snprintf(mac, sizeof(mac), "%02X%02X%02X%02X%02X%02X",
+                        *ptr & 0xFF, *(ptr+1) & 0xFF, *(ptr+2) &0xFF,
+                        *(ptr+3) & 0xFF, *(ptr+4) & 0xFF, *(ptr+5) & 0xFF);
+                break;
+            }
+        }
+        
+        freeifaddrs(ifap);
+        
+        if (ifaptr == NULL)
+        {
+            debug(LOG_ERR, "get_iface_mac ifaptr is null, interface not found", strerror(errno));
+            return NULL;
+        }
+        
+    } else {
+        debug(LOG_ERR, "get_iface_mac getifaddrs: %s", strerror(errno));
+        return NULL;
+    }
+    
+    return safe_strdup(mac);
+}
+#endif
 
 char *
 get_ext_iface(void)
