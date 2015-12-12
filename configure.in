@@ -98,8 +98,8 @@ if test "x$enable_cyassl" = xyes; then
         # the use the new naming scheme below as cyassl/ssl.h is not available for
         # AC_SEARCH_LIBS
         AC_CHECK_HEADERS(cyassl/ssl.h)
-        AC_SEARCH_LIBS([CyaTLSv1_client_method], [cyassl], [], [
-            AC_SEARCH_LIBS([wolfTLSv1_client_method], [wolfssl], [], [
+        AC_SEARCH_LIBS([CyaTLSv1_2_client_method], [cyassl], [], [
+            AC_SEARCH_LIBS([wolfTLSv1_2_client_method], [wolfssl], [], [
                             AC_MSG_ERROR([unable to locate SSL lib: either wolfSSL or CyaSSL needed.])
             ])
         ])
@@ -112,7 +112,7 @@ if test "x$enable_cyassl" = xyes; then
         ]], [[
                 CYASSL_CTX *ctx;
                 CyaSSL_Init();
-                ctx = CyaSSL_CTX_new(CyaTLSv1_client_method());
+                ctx = CyaSSL_CTX_new(CyaTLSv1_2_client_method());
                 CyaSSL_CTX_UseSNI(ctx, CYASSL_SNI_HOST_NAME, "wifidog.org", 11);
         ]])], [enabled_sni=yes], [enabled_sni=no])
 

@@ -163,7 +163,7 @@ get_cyassl_ctx(const char *hostname)
         CyaSSL_Init();
         /* Create the CYASSL_CTX */
         /* Allow TLSv1.0 up to TLSv1.2 */
-        if ((cyassl_ctx = CyaSSL_CTX_new(CyaTLSv1_client_method())) == NULL) {
+        if ((cyassl_ctx = CyaSSL_CTX_new(CyaTLSv1_2_client_method())) == NULL) {
             debug(LOG_ERR, "Could not create CYASSL context.");
             UNLOCK_CYASSL_CTX();
             return NULL;
