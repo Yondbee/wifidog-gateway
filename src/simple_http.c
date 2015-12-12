@@ -46,10 +46,6 @@
 #include <cyassl/ctaocrypt/error-crypt.h>
 #endif
 
-#ifdef USE_CYASSL
-static CYASSL_CTX *get_cyassl_ctx(const char *hostname);
-#endif
-
 /**
  * Perform an HTTP request, caller frees both request and response,
  * NULL returned on error.
@@ -151,7 +147,7 @@ static pthread_mutex_t cyassl_ctx_mutex = PTHREAD_MUTEX_INITIALIZER;
 	debug(LOG_DEBUG, "CyaSSL Context unlocked"); \
 } while (0)
 
-static CYASSL_CTX *
+CYASSL_CTX *
 get_cyassl_ctx(const char *hostname)
 {
     int err;
@@ -182,7 +178,7 @@ get_cyassl_ctx(const char *hostname)
         }
 
 #ifdef HAVE_SNI
-        if (config->ssl_use_sni) {
+        if (config->ssl_use_sni && hostname != NULL) {
             debug(LOG_INFO, "Setting SSL using SNI for hostname %s",
                 hostname);
             err = CyaSSL_CTX_UseSNI(cyassl_ctx, CYASSL_SNI_HOST_NAME, hostname,

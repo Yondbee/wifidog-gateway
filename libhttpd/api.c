@@ -299,17 +299,17 @@ void *cyassl_ctx;
     /* SSL Socket Implementation */
 #ifdef USE_CYASSL
     
-    if (cyassl_ctx == NULL)
-    {
-        close(sock);
-        free(new);
-        return (NULL);
-    }
-    
-    local_cyassl_ctx = (CYASSL_CTX *)cyassl_ctx;
-    
     if (new->sslPort != 0)
     {
+        local_cyassl_ctx = (CYASSL_CTX *)cyassl_ctx;
+        
+        if (cyassl_ctx == NULL)
+        {
+            close(sock);
+            free(new);
+            return (NULL);
+        }
+        
         sslsock = socket(AF_INET, SOCK_STREAM, 0);
         if (sslsock < 0) {
             close(sock);

@@ -44,6 +44,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
+#include "config.h"
 #include "common.h"
 #include "httpd.h"
 #include "safe.h"
@@ -58,6 +59,7 @@
 #include "wdctl_thread.h"
 #include "ping_thread.h"
 #include "httpd_thread.h"
+#include "simple_http.h"
 #include "util.h"
 
 /** XXX Ugly hack 
@@ -394,7 +396,7 @@ main_loop(void)
     void *sslContext = NULL;
     
 #ifdef USE_CYASSL
-    sslContext = get_cyassl_ctx();
+    sslContext = get_cyassl_ctx(NULL);
 #endif
     
     /* Initializes the web server */

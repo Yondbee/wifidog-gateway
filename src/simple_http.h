@@ -25,7 +25,9 @@
 char *http_get(const int, const char *);
 
 #ifdef USE_CYASSL
-char *https_get(const int, const char *, const char *);
+    #include <cyassl/ssl.h>
+    char *https_get(const int, const char *, const char *);
+    CYASSL_CTX *get_cyassl_ctx(const char *hostname);
 #endif                          /* defined(USE_CYASSL) */
 
 #endif                          /* defined(_SIMPLE_HTTP_H_) */
