@@ -444,7 +444,7 @@ struct timeval *timeout;
 
 #ifdef USE_CYASSL
     // HTTPs socket
-    else if (FD_ISSET(server->serverSock, &fds))
+    else if (FD_ISSET(server->sslSock, &fds))
     {
         
         /* Allocate request struct */
