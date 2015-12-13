@@ -449,6 +449,7 @@ struct timeval *timeout;
     // HTTPs socket
     else if (FD_ISSET(server->sslSock, &fds))
     {
+        char buffer[CYASSL_MAX_ERROR_SZ];
         
         /* Allocate request struct */
         r = (request *) malloc(sizeof(request));
@@ -482,14 +483,19 @@ struct timeval *timeout;
         err = CyaSSL_set_fd( r->cyassl_obj, r->clientSock );
         if (err != SSL_SUCCESS)
         {
+            err = CyaSSL_get_error(r->cyassl_obj, 0);
+            printf("CyaSSL_set_fd SSL error = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
             server->lastError = -5;
             httpdEndRequest(r);
             return (NULL);
         }
         
+        
         err = CyaSSL_accept( r->cyassl_obj );
         if (err != SSL_SUCCESS)
         {
+            err = CyaSSL_get_error(r->cyassl_obj, 0);
+            printf("CyaSSL_accept SSL error = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
             server->lastError = -6;
             httpdEndRequest(r);
             return (NULL);
