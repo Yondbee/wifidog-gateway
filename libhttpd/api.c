@@ -303,7 +303,7 @@ void *cyassl_ctx;
     {
         local_cyassl_ctx = (CYASSL_CTX *)cyassl_ctx;
         
-        if (cyassl_ctx == NULL)
+        if (local_cyassl_ctx == NULL)
         {
             close(sock);
             free(new);
@@ -368,7 +368,7 @@ httpdGetConnection(server, timeout)
 httpd *server;
 struct timeval *timeout;
 {
-    int result, maxDesc;
+    int result, maxDesc, err;
     fd_set fds;
     struct sockaddr_in addr;
     socklen_t addrLen;
@@ -379,13 +379,16 @@ struct timeval *timeout;
     FD_ZERO(&fds);
     FD_SET(server->serverSock, &fds);
     maxDesc = server->serverSock;
+    
     /* SSL SOCKET SUPPORT */
 #ifdef USE_CYASSL
     // listen on ssl socket as well, if open
     if (server->sslSock != 0)
     {
         FD_SET(server->sslSock, &fds);
-        maxDesc = maxDesc > server->sslSock ? maxDesc : server->sslSock;
+        
+        if (server->sslSock > maxDesc)
+            maxDesc = server->sslSock;
     }
 #endif
     
@@ -476,7 +479,22 @@ struct timeval *timeout;
             return (NULL);
         }
         
-        CyaSSL_set_fd( r->cyassl_obj, r->clientSock );
+        err = CyaSSL_set_fd( r->cyassl_obj, r->clientSock );
+        if (err != SSL_SUCCESS)
+        {
+            server->lastError = -5;
+            httpdEndRequest(r);
+            return (NULL);
+        }
+        
+        err = CyaSSL_accept( r->cyassl_obj );
+        if (err != SSL_SUCCESS)
+        {
+            server->lastError = -6;
+            httpdEndRequest(r);
+            return (NULL);
+
+        }
         
         /*
          ** Check the default ACL
