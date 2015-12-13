@@ -327,7 +327,7 @@ void *cyassl_ctx;
         }
 #	endif
         
-        new->sslSock = sock;
+        new->sslSock = sslsock;
         bzero(&ssladdr, sizeof(ssladdr));
         ssladdr.sin_family = AF_INET;
         if (new->host == HTTP_ANY_ADDR) {
