@@ -49,7 +49,69 @@
 #endif
 
 #ifdef USE_CYASSL
-    static CYASSL_CTX *local_cyassl_ctx = NULL;
+    #include <cyassl/ssl.h>
+    /* For CYASSL_MAX_ERROR_SZ */
+    #include <cyassl/ctaocrypt/types.h>
+    /* For COMPRESS_E */
+    #include <cyassl/ctaocrypt/error-crypt.h>
+    #include "safe.h"
+
+static CYASSL_CTX *cyassl_ctx = NULL;
+static pthread_mutex_t cyassl_ctx_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+#define LOCK_CYASSL_CTX() do { \
+	pthread_mutex_lock(&cyassl_ctx_mutex); \
+} while (0)
+
+#define UNLOCK_CYASSL_CTX() do { \
+	pthread_mutex_unlock(&cyassl_ctx_mutex); \
+} while (0)
+
+CYASSL_CTX *
+create_cyassl_ctx(const char *certPath)
+{
+    int err;
+    CYASSL_CTX *ret;
+    char *certFilePath;
+
+    LOCK_CYASSL_CTX();
+
+    if (NULL == cyassl_ctx) {
+        CyaSSL_Init();
+        /* Create the CYASSL_CTX */
+        /* Allow TLSv1.0 up to TLSv1.2 */
+        if ((cyassl_ctx = CyaSSL_CTX_new(CyaTLSv1_2_server_method())) == NULL) {
+            UNLOCK_CYASSL_CTX();
+            return NULL;
+        }
+
+
+            safe_asprintf(&certFilePath, "%s%s", certPath, "wifidog-cert.pem");
+            // debug(LOG_INFO, "[SSLGW] Loading SSL server cert from %s", certPath);
+            err = CyaSSL_CTX_use_certificate_file( cyassl_ctx, certPath, SSL_FILETYPE_PEM );
+            free(certPath);
+            if (SSL_SUCCESS != err) {
+                // debug(LOG_ERR, "[SSLGW] Could not load SSL server cert (error %d)", err);
+                UNLOCK_CYASSL_CTX();
+                return NULL;
+            }
+
+            safe_asprintf(&certFilePath, "%s%s", certPath, "wifidog-key.pem");
+            // debug(LOG_INFO, "[SSLGW] Loading SSL server cert from %s", certPath);
+            err = CyaSSL_CTX_use_PrivateKey_file( cyassl_ctx, certPath, SSL_FILETYPE_PEM );
+            free(certPath);
+            if (SSL_SUCCESS != err) {
+               // debug(LOG_ERR, "[SSLGW] Could not load SSL server cert (error %d)", err);
+                UNLOCK_CYASSL_CTX();
+                return NULL;
+            }
+    }
+
+    ret = cyassl_ctx;
+    UNLOCK_CYASSL_CTX();
+    return ret;
+}
+
 #endif
 
 char *
@@ -198,11 +260,11 @@ httpdAddVariable(request * r, const char *name, const char *value)
 }
 
 httpd *
-httpdCreate(host, port, ssl_port, cyassl_ctx)
+httpdCreate(host, port, ssl_port, ssl_path)
 const char *host;
 int port;
 int ssl_port;
-void *cyassl_ctx;
+const char *ssl_path;
 {
     httpd *new;
     int sock, opt, sslsock, sslopt;
@@ -298,18 +360,11 @@ void *cyassl_ctx;
     
     /* SSL Socket Implementation */
 #ifdef USE_CYASSL
+
+    create_cyassl_ctx(ssl_path);
     
     if (new->sslPort != 0)
     {
-        local_cyassl_ctx = (CYASSL_CTX *)cyassl_ctx;
-        
-        if (local_cyassl_ctx == NULL)
-        {
-            close(sock);
-            free(new);
-            return (NULL);
-        }
-        
         sslsock = socket(AF_INET, SOCK_STREAM, 0);
         if (sslsock < 0) {
             close(sock);
@@ -471,7 +526,7 @@ struct timeval *timeout;
 
         r->readBufRemain = 0;
         r->readBufPtr = NULL;
-        r->cyassl_obj = CyaSSL_new( local_cyassl_ctx );
+        r->cyassl_obj = CyaSSL_new( cyassl_ctx );
         
         if( r->cyassl_obj == NULL )
         {

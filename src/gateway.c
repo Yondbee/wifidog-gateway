@@ -61,6 +61,7 @@
 #include "httpd_thread.h"
 #include "simple_http.h"
 #include "util.h"
+#include "../libhttpd/httpd.h"
 
 /** XXX Ugly hack 
  * We need to remember the thread IDs of threads that simulate wait with pthread_cond_timedwait
@@ -393,19 +394,13 @@ main_loop(void)
         debug(LOG_DEBUG, "%s = %s", config->gw_interface, config->gw_id);
     }
 
-    void *sslContext = NULL;
-    
-#ifdef USE_CYASSL
-    sslContext = get_cyassl_ctx(NULL);
-#endif
-    
     /* Initializes the web server */
     debug(LOG_NOTICE, "Creating web server on %s:%d (SSL %d)",
                       config->gw_address,
                       config->gw_port,
                       config->gw_ssl_port);
     if ((webserver = httpdCreate(config->gw_address, config->gw_port,
-                                 config->gw_ssl_port, sslContext)) == NULL) {
+                                 config->gw_ssl_port, config->ssl_certs)) == NULL) {
         debug(LOG_ERR, "Could not create web server: %s", strerror(errno));
         exit(1);
     }
