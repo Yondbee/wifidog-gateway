@@ -18,4 +18,5 @@ EXTRA_DIST = README
 AM_CPPFLAGS = \
 	-Wall \
 	-Wextra \
-	-Wno-unused-parameter
+	-Wno-unused-parameter \
+	-I${top_srcdir}/src
