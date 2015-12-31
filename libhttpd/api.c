@@ -80,7 +80,7 @@ create_cyassl_ctx(const char *certPath)
         CyaSSL_Init();
         /* Create the CYASSL_CTX */
         /* Allow TLSv1.0 up to TLSv1.2 */
-        if ((cyassl_ctx = CyaSSL_CTX_new(CyaTLSv1_2_server_method())) == NULL) {
+        if ((cyassl_ctx = CyaSSL_CTX_new(CyaSSLv23_server_method())) == NULL) {
             UNLOCK_CYASSL_CTX();
             return NULL;
         }
