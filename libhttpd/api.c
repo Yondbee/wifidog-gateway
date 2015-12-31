@@ -88,7 +88,7 @@ create_cyassl_ctx(const char *certPath)
 
             safe_asprintf(&certFilePath, "%s%s", certPath, "wifidog-cert.pem");
             // debug(LOG_INFO, "[SSLGW] Loading SSL server cert from %s", certPath);
-            err = CyaSSL_CTX_use_certificate_file( cyassl_ctx, certPath, SSL_FILETYPE_PEM );
+            err = CyaSSL_CTX_use_certificate_file( cyassl_ctx, certFilePath, SSL_FILETYPE_PEM );
             free(certPath);
             if (SSL_SUCCESS != err) {
                 // debug(LOG_ERR, "[SSLGW] Could not load SSL server cert (error %d)", err);
@@ -98,7 +98,7 @@ create_cyassl_ctx(const char *certPath)
 
             safe_asprintf(&certFilePath, "%s%s", certPath, "wifidog-key.pem");
             // debug(LOG_INFO, "[SSLGW] Loading SSL server cert from %s", certPath);
-            err = CyaSSL_CTX_use_PrivateKey_file( cyassl_ctx, certPath, SSL_FILETYPE_PEM );
+            err = CyaSSL_CTX_use_PrivateKey_file( cyassl_ctx, certFilePath, SSL_FILETYPE_PEM );
             free(certPath);
             if (SSL_SUCCESS != err) {
                // debug(LOG_ERR, "[SSLGW] Could not load SSL server cert (error %d)", err);
