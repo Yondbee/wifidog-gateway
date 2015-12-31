@@ -105,6 +105,7 @@ typedef enum {
     oSSLCertPath,
     oSSLAllowedCipherList,
     oSSLUseSNI,
+    oSkipIptablesRedirect
 } OpCodes;
 
 /** @internal
@@ -153,7 +154,8 @@ static const struct {
     "sslcertpath", oSSLCertPath}, {
     "sslallowedcipherlist", oSSLAllowedCipherList}, {
     "sslusesni", oSSLUseSNI}, {
-NULL, oBadOption},};
+    "skipiptablesredirect", oSkipIptablesRedirect}, {
+    NULL, oBadOption}};
 
 static void config_notnull(const void *, const char *);
 static int parse_boolean_value(char *);
@@ -211,6 +213,7 @@ config_init(void)
     config.ssl_cipher_list = NULL;
     config.arp_table_path = safe_strdup(DEFAULT_ARPTABLE);
     config.ssl_use_sni = DEFAULT_AUTHSERVSSLSNI;
+    config.skipIptablesRedirect = 0;
 
     debugconf.log_stderr = 1;
     debugconf.debuglevel = DEFAULT_DEBUGLEVEL;
@@ -811,8 +814,16 @@ config_read(const char *filename)
                 case oProxyPort:
                     sscanf(p1, "%d", &config.proxy_port);
                     break;
+                case oSkipIptablesRedirect:
+                    config.skipIptablesRedirect = parse_boolean_value(p1);
+                    if (config.skipIptablesRedirect < 0) {
+                        debug(LOG_WARNING, "Bad syntax for Parameter: SkipIpTablesRedirect on line %d " "in %s."
+                                "The syntax is yes or no." , linenum, filename);
+                        exit(-1);
+                    }
                 case oSSLCertPath:
                     config.ssl_certs = safe_strdup(p1);
+
 #ifndef USE_CYASSL
                     debug(LOG_WARNING, "SSLCertPath is set but not SSL compiled in. Ignoring!");
 #endif

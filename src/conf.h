@@ -201,6 +201,8 @@ typedef struct {
     char *arp_table_path; /**< @brief Path to custom ARP table, formatted
         like /proc/net/arp */
     t_popular_server *popular_servers; /**< @brief list of popular servers */
+
+    int skipIptablesRedirect; /**< @brief if yes, do not add redirect from port 80/443 to gateway */
 } s_config;
 
 /** @brief Get the current gateway configuration */
