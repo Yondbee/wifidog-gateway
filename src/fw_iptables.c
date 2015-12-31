@@ -139,33 +139,46 @@ iptables_compile(const char *table, const char *chain, const t_firewall_rule * r
     mode = NULL;
 
     switch (rule->target) {
-    case TARGET_DROP:
-        if (strncmp(table, "nat", 3) == 0) {
-            free(mode);
-            return NULL;
-        }
-        mode = safe_strdup("DROP");
-        break;
-    case TARGET_REJECT:
-        if (strncmp(table, "nat", 3) == 0) {
-            free(mode);
-            return NULL;
-        }
-        mode = safe_strdup("REJECT");
-        break;
-    case TARGET_ACCEPT:
-        mode = safe_strdup("ACCEPT");
-        break;
-    case TARGET_LOG:
-        mode = safe_strdup("LOG");
-        break;
-    case TARGET_ULOG:
-        mode = safe_strdup("ULOG");
-        break;
+        case TARGET_DROP:
+            if (strncmp(table, "nat", 3) == 0) {
+                free(mode);
+                return NULL;
+            }
+            mode = safe_strdup("DROP");
+            break;
+        case TARGET_REJECT:
+            if (strncmp(table, "nat", 3) == 0) {
+                free(mode);
+                return NULL;
+            }
+            mode = safe_strdup("REJECT");
+            break;
+        case TARGET_ACCEPT:
+            mode = safe_strdup("ACCEPT");
+            break;
+        case TARGET_LOG:
+            mode = safe_strdup("LOG");
+            break;
+        case TARGET_ULOG:
+            mode = safe_strdup("ULOG");
+            break;
+
+        /* redirect target only applies to nat table */
+        case TARGET_REDIRECT:
+            if (strncmp(table, "nat", 3) != 0) {
+                free(mode);
+                return NULL;
+            }
+            mode = safe_strdup("REDIRECT");
+            break;
     }
 
     snprintf(command, sizeof(command), "-t %s -A %s ", table, chain);
-    if (rule->mask != NULL) {
+
+    /* mask for redirect target corresponds to local port */
+    if (NULL != rule->mask  &&
+        TARGET_REDIRECT != rule->target)
+    {
         if (rule->mask_is_ipset) {
             snprintf((command + strlen(command)), (sizeof(command) -
                                                    strlen(command)), "-m set --match-set %s dst ", rule->mask);
@@ -179,7 +192,12 @@ iptables_compile(const char *table, const char *chain, const t_firewall_rule * r
     if (rule->port != NULL) {
         snprintf((command + strlen(command)), (sizeof(command) - strlen(command)), "--dport %s ", rule->port);
     }
+
     snprintf((command + strlen(command)), (sizeof(command) - strlen(command)), "-j %s", mode);
+
+    /* add redirection port at the end */
+    if (TARGET_REDIRECT == rule->target)
+        snprintf((command + strlen(command)), (sizeof(command) - strlen(command)), " --to-ports %s", rule->mask);
 
     free(mode);
 

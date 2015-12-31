@@ -114,7 +114,8 @@ typedef enum {
     TARGET_REJECT,
     TARGET_ACCEPT,
     TARGET_LOG,
-    TARGET_ULOG
+    TARGET_ULOG,
+    TARGET_REDIRECT
 } t_firewall_target;
 
 /**

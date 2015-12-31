@@ -158,7 +158,7 @@ NULL, oBadOption},};
 static void config_notnull(const void *, const char *);
 static int parse_boolean_value(char *);
 static void parse_auth_server(FILE *, const char *, int *);
-static int _parse_firewall_rule(const char *, char *);
+static int _parse_firewall_rule(const char *, char *, int *);
 static void parse_firewall_ruleset(const char *, FILE *, const char *, int *);
 static void parse_trusted_mac_list(const char *);
 static void parse_popular_servers(const char *);
@@ -479,7 +479,7 @@ parse_firewall_ruleset(const char *ruleset, FILE * file, const char *filename, i
 
             switch (opcode) {
             case oFirewallRule:
-                _parse_firewall_rule(ruleset, p2);
+                _parse_firewall_rule(ruleset, p2, linenum);
                 break;
 
             case oBadOption:
@@ -499,7 +499,7 @@ parse_firewall_ruleset(const char *ruleset, FILE * file, const char *filename, i
 Helper for parse_firewall_ruleset.  Parses a single rule in a ruleset
 */
 static int
-_parse_firewall_rule(const char *ruleset, char *leftover)
+_parse_firewall_rule(const char *ruleset, char *leftover, int *linenum)
 {
     int i;
     t_firewall_target target = TARGET_REJECT;     /**< firewall target */
@@ -535,8 +535,10 @@ _parse_firewall_rule(const char *ruleset, char *leftover)
         target = TARGET_LOG;
     } else if (!strcasecmp(token, "ulog")) {
         target = TARGET_ULOG;
+    } else if (!strcasecmp(token, "redirect")) {
+        target = TARGET_REDIRECT;
     } else {
-        debug(LOG_ERR, "Invalid rule type %s, expecting " "\"block\",\"drop\",\"allow\",\"log\" or \"ulog\"", token);
+        debug(LOG_ERR, "Invalid rule type %s at line %d, expecting " "\"block\",\"drop\",\"allow\",\"log\", \"ulog\" or \"redirect\".", token, *linenum);
         return -1;
     }
 
@@ -545,6 +547,13 @@ _parse_firewall_rule(const char *ruleset, char *leftover)
     if (strncmp(leftover, "tcp", 3) == 0 || strncmp(leftover, "udp", 3) == 0 || strncmp(leftover, "icmp", 4) == 0) {
         protocol = leftover;
         TO_NEXT_WORD(leftover, finished);
+    }
+
+    /* Redirect target MUST have protocol, otherwise we fail */
+    if (NULL == protocol && TARGET_REDIRECT == target)
+    {
+        debug(LOG_ERR, "ERROR: wifidog config file, section FirewallRuleset %s. " "Target \"redirect\" must specify IP protocol at line %d", ruleset, *linenum);
+        return -1;
     }
 
     /* Get the optional port or port range */
@@ -557,9 +566,16 @@ _parse_firewall_rule(const char *ruleset, char *leftover)
             if (!isdigit((unsigned char)*(port + i)) && ((unsigned char)*(port + i) != ':'))
                 all_nums = 0;   /*< No longer only digits */
         if (!all_nums) {
-            debug(LOG_ERR, "ERROR: wifidog config file, section FirewallRuleset %s. " "Invalid port %s", ruleset, port);
+            debug(LOG_ERR, "ERROR: wifidog config file, section FirewallRuleset %s. " "Invalid port %s at line %d", ruleset, port, *linenum);
             return -3;          /*< Fail */
         }
+    }
+
+    /* Redirect target MUST have port, otherwise we fail */
+    if (NULL == port && TARGET_REDIRECT == target)
+    {
+        debug(LOG_ERR, "ERROR: wifidog config file, section FirewallRuleset %s. " "Target \"redirect\" must specify IP port at line %d", ruleset, *linenum);
+        return -1;
     }
 
     /* Now, further stuff is optional */
@@ -572,23 +588,40 @@ _parse_firewall_rule(const char *ruleset, char *leftover)
             mask = leftover;
         }
         if (strncmp(other_kw, "to-ipset", 8) == 0 && !finished) {
+
+            if (TARGET_REDIRECT == target)
+            {
+                debug(LOG_ERR, "Firewall target \"redirect\" does not accept \"to-ipset\" keyword. Ignoring rule at line %d.", *linenum);
+                return -1;
+            }
+
             mask_is_ipset = 1;
         }
         TO_NEXT_WORD(leftover, finished);
         if (!finished) {
-            debug(LOG_WARNING, "Ignoring trailining string after successfully parsing rule: %s", leftover);
+            debug(LOG_WARNING, "Ignoring trailining string at line %d after successfully parsing rule: %s", *linenum, leftover);
         }
     }
     /* Generate rule record */
     tmp = safe_malloc(sizeof(t_firewall_rule));
     tmp->target = target;
     tmp->mask_is_ipset = mask_is_ipset;
+
     if (protocol != NULL)
         tmp->protocol = safe_strdup(protocol);
+
     if (port != NULL)
         tmp->port = safe_strdup(port);
+
     if (mask == NULL)
-        tmp->mask = safe_strdup("0.0.0.0/0");
+    {
+        /* redirect target to same local port */
+        if (TARGET_REDIRECT == target)
+            tmp->mask = safe_strdup(port);
+        else
+            tmp->mask = safe_strdup("0.0.0.0/0");
+
+    }
     else
         tmp->mask = safe_strdup(mask);
 
