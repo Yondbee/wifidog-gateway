@@ -459,6 +459,13 @@ main_loop(void)
             if (NULL != r) {
                 httpdEndRequest(r);
             }
+        }
+        else if (webserver->lastError >= -6 && webserver->lastError <= -4) {
+            /* SSL Error between -4 and -6 */
+            debug(LOG_ERR, "ERROR: httpdGetConnection returned SSL error %d. Killing connection.", webserver->lastError);
+            if (NULL != r) {
+                httpdEndRequest(r);
+            }
         } else if (webserver->lastError < -1) {
             /*
              * FIXME
