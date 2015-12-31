@@ -821,6 +821,7 @@ config_read(const char *filename)
                                 "The syntax is yes or no." , linenum, filename);
                         exit(-1);
                     }
+                    break;
                 case oSSLCertPath:
                     config.ssl_certs = safe_strdup(p1);
 
