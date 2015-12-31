@@ -365,6 +365,9 @@ iptables_fw_init(void)
             iptables_do_command("-t nat -A " CHAIN_UNKNOWN " -p tcp --dport 443 -j REDIRECT --to-ports %d", gw_ssl_port);
     }
 
+    /* redirect targets must be added here */
+    iptables_load_ruleset("nat", FWRULESET_UNKNOWN_USERS, CHAIN_UNKNOWN);
+
     /*
      *
      * Everything in the FILTER table
