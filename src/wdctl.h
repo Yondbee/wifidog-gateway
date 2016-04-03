@@ -30,14 +30,17 @@
 #define DEFAULT_SOCK	"/tmp/wdctl.sock"
 
 #define WDCTL_UNDEF		0
-#define WDCTL_STATUS		1
+#define WDCTL_STATUS	1
 #define WDCTL_STOP		2
 #define WDCTL_KILL		3
 #define WDCTL_RESTART	4
+#define WDCTL_AUTH  	5
 
 typedef struct {
     char *socket;
     int command;
     char *param;
+    char *param1;
+    char *param2;
 } s_config;
 #endif

@@ -63,6 +63,8 @@ static void wdctl_status(int);
 static void wdctl_stop(int);
 static void wdctl_reset(int, const char *);
 static void wdctl_restart(int);
+static void wdctl_auth(int, const char *);
+
 
 static int wdctl_socket_server;
 
@@ -208,6 +210,8 @@ thread_wdctl_handler(void *arg)
         wdctl_reset(fd, (request + 6));
     } else if (strncmp(request, "restart", 7) == 0) {
         wdctl_restart(fd);
+    } else if (strncmp(request, "auth", 4) == 0) {
+        wdctl_auth(fd, (request + 5));
     } else {
         debug(LOG_ERR, "Request was not understood!");
     }
@@ -224,6 +228,9 @@ write_to_socket(int fd, char *text, size_t len)
 {
     ssize_t retval;
     size_t written;
+
+    if (len == 0)
+        len = strlen(text);
 
     written = 0;
     while (written < len) {
@@ -383,4 +390,81 @@ wdctl_reset(int fd, const char *arg)
     write_to_socket(fd, "Yes", 3);
 
     debug(LOG_DEBUG, "Exiting wdctl_reset...");
+}
+
+static void
+wdctl_auth(int fd, const char *arg)
+{
+    t_client *node;
+    char *tempstring = NULL;
+
+    debug(LOG_DEBUG, "Entering wdctl_auth...");
+
+
+    debug(LOG_DEBUG, "Argument: %s (@%x)", arg, arg);
+
+    /* loop over args, and extract three:
+     * 1. mac
+     * 2. ip
+     * 3. token
+     */
+    int argCnt = 0;
+    char *new_args = safe_strdup(arg);
+    char *split_args[3];
+    char *position;
+
+    split_args[0] = strtok_r(new_args, ' ', &position);
+    debug(LOG_DEBUG, "Argument 1: %s", split_args[0]);
+    if (NULL == split_args[0])
+    {
+        write_to_socket(fd, "Wrong number of arguments specified, should be MAC, IP and token.", 0);
+        return;
+    }
+
+    /* get next two args */
+    while ( argCnt <= 2 && (split_args[++argCnt] = strtok_r(NULL, ' ', &position)) != NULL );
+
+    debug(LOG_DEBUG, "Argument 2: %s", split_args[1]);
+    debug(LOG_DEBUG, "Argument 3: %s", split_args[2]);
+
+    if (NULL == split_args[1] || NULL == split_args[2])
+    {
+        write_to_socket(fd, "Wrong number of arguments specified, should be MAC, IP and token.", 0);
+        return;
+    }
+
+    LOCK_CLIENT_LIST();
+
+    /* We get the node or insert a new one... */
+    if ((node = client_list_find_by_mac(split_args[0])) != NULL) ;
+    else ((node = client_list_find_by_ip(split_args[1])) != NULL) ;
+
+    // add client if missing
+    if (NULL == node) {
+
+        debug(LOG_DEBUG, "Could not find node by IP or MAC, creating new one");
+
+        node = client_list_add(
+                split_args[1], // IP
+                split_args[0], // MAC
+                split_args[2] // token
+        );
+    }
+    else {
+        debug(LOG_DEBUG, "Found node in database, assigning token ID");
+        node->token = safe_strdup(split_args[2]);
+    }
+
+
+    /* allow */
+    fw_allow(node, FW_MARK_KNOWN);
+
+    UNLOCK_CLIENT_LIST();
+
+    safe_asprintf(&tempstring,
+                  "Successfully authorized client with MAC %s, IP %s and token %s\n",
+                  node->ip, node->mac, node->token);
+    write_to_socket(fd, tempstring, strlen(tempstring));
+
+    debug(LOG_DEBUG, "Exiting wdctl_auth...");
 }

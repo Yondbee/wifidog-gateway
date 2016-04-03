@@ -67,10 +67,11 @@ usage(void)
     fprintf(stdout, "  -h                Print usage\n");
     fprintf(stdout, "\n");
     fprintf(stdout, "commands:\n");
-    fprintf(stdout, "  reset [mac|ip]    Reset the specified mac or ip connection\n");
-    fprintf(stdout, "  status            Obtain the status of wifidog\n");
-    fprintf(stdout, "  stop              Stop the running wifidog\n");
-    fprintf(stdout, "  restart           Re-start the running wifidog (without disconnecting active users!)\n");
+    fprintf(stdout, "  auth <mac> <ip> <token>    Authorize specified mac and IP with given token\n");
+    fprintf(stdout, "  reset [mac|ip]             Reset the specified mac or ip connection\n");
+    fprintf(stdout, "  status                     Obtain the status of wifidog\n");
+    fprintf(stdout, "  stop                       Stop the running wifidog\n");
+    fprintf(stdout, "  restart                    Re-start the running wifidog (without disconnecting active users!)\n");
     fprintf(stdout, "\n");
 }
 
@@ -136,6 +137,19 @@ parse_commandline(int argc, char **argv)
         config.param = strdup(*(argv + optind + 1));
     } else if (strcmp(*(argv + optind), "restart") == 0) {
         config.command = WDCTL_RESTART;
+    } else if (strcmp(*(argv + optind), "auth") == 0) {
+        config.command = WDCTL_AUTH;
+
+        if ((argc - (optind + 3)) <= 0) {
+            fprintf(stderr, "wdctl: Error: You must specify mac, IP and token.\n");
+            usage();
+            exit(1);
+        }
+
+        config.param  = strdup(*(argv + optind + 1)); // MAC
+        config.param1 = strdup(*(argv + optind + 2)); // IP
+        config.param2 = strdup(*(argv + optind + 3)); // token
+
     } else {
         fprintf(stderr, "wdctl: Error: Invalid command \"%s\"\n", *(argv + optind));
         usage();
@@ -268,6 +282,34 @@ wdctl_reset(void)
     close(sock);
 }
 
+void
+wdctl_auth(void)
+{
+    int sock;
+    char buffer[4096];
+    char *request = NULL;
+    size_t len;
+    ssize_t rlen;
+
+    asprintf(&request, "auth %s %s %s\r\n\r\n",
+             config.param, config.param1, config.param2);
+
+    sock = connect_to_server(config.socket);
+
+    send_request(sock, request);
+
+    len = 0;
+    memset(buffer, 0, sizeof(buffer));
+    while ((len < sizeof(buffer)) && ((rlen = read(sock, (buffer + len), (sizeof(buffer) - len))) > 0)) {
+        len += (size_t) rlen;
+    }
+
+    fprintf(stdout, buffer);
+
+    shutdown(sock, 2);
+    close(sock);
+}
+
 static void
 wdctl_restart(void)
 {
@@ -314,6 +356,10 @@ main(int argc, char **argv)
 
     case WDCTL_RESTART:
         wdctl_restart();
+        break;
+
+    case WDCTL_AUTH:
+        wdctl_auth();
         break;
 
     default:
