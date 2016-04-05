@@ -413,7 +413,7 @@ wdctl_auth(int fd, const char *arg)
     char *split_args[3];
     char *position;
 
-    split_args[0] = strtok_r(new_args, ' ', &position);
+    split_args[0] = strtok_r(new_args, " ", &position);
     debug(LOG_DEBUG, "Argument 1: %s", split_args[0]);
     if (NULL == split_args[0])
     {
@@ -422,7 +422,7 @@ wdctl_auth(int fd, const char *arg)
     }
 
     /* get next two args */
-    while ( argCnt <= 2 && (split_args[++argCnt] = strtok_r(NULL, ' ', &position)) != NULL );
+    while ( argCnt <= 2 && (split_args[++argCnt] = strtok_r(NULL, " ", &position)) != NULL );
 
     debug(LOG_DEBUG, "Argument 2: %s", split_args[1]);
     debug(LOG_DEBUG, "Argument 3: %s", split_args[2]);
