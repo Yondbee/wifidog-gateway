@@ -463,7 +463,7 @@ wdctl_auth(int fd, const char *arg)
 
     safe_asprintf(&tempstring,
                   "Successfully authorized client with MAC %s, IP %s and token %s\n",
-                  node->ip, node->mac, node->token);
+                  node->mac, node->ip, node->token);
     write_to_socket(fd, tempstring, strlen(tempstring));
 
     debug(LOG_DEBUG, "Exiting wdctl_auth...");
