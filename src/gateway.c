@@ -354,7 +354,7 @@ init_signals(void)
 static void
 main_loop(void)
 {
-    int result;
+    int result, cnt;
     pthread_t tid;
     s_config *config = config_get_config();
     request *requests[2];
@@ -458,12 +458,11 @@ main_loop(void)
 
         if (webserver->lastError == -1) {
             /* Interrupted system call */
-            for (int cnt = 0; cnt < totRequests; ++cnt)
+            for (cnt = 0; cnt < totRequests; ++cnt)
                 httpdEndRequest(requests[cnt]);
         }
 
-        int cnt = 0;
-        for (; cnt < totRequests; ++cnt)
+        for (cnt = 0; cnt < totRequests; ++cnt)
         {
             request *r = requests[cnt];
             if (NULL != r) {
