@@ -530,6 +530,9 @@ struct timeval *timeout;
         
         if( r->cyassl_obj == NULL )
         {
+            err = CyaSSL_get_error(r->cyassl_obj, 0);
+            CyaSSL_ERR_error_string(err, buffer);
+            _httpd_writeErrorLog(server, r, LEVEL_ERROR, buffer);
             server->lastError = -4;
             close(r->clientSock);
             return (NULL);
@@ -539,7 +542,8 @@ struct timeval *timeout;
         if (err != SSL_SUCCESS)
         {
             err = CyaSSL_get_error(r->cyassl_obj, 0);
-            printf("CyaSSL_set_fd SSL error = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
+            CyaSSL_ERR_error_string(err, buffer);
+            _httpd_writeErrorLog(server, r, LEVEL_ERROR, buffer);
             server->lastError = -5;
             httpdEndRequest(r);
             return (NULL);
@@ -550,7 +554,8 @@ struct timeval *timeout;
         if (err != SSL_SUCCESS)
         {
             err = CyaSSL_get_error(r->cyassl_obj, 0);
-            printf("CyaSSL_accept SSL error = %d, %s\n", err, CyaSSL_ERR_error_string(err, buffer));
+            CyaSSL_ERR_error_string(err, buffer);
+            _httpd_writeErrorLog(server, r, LEVEL_ERROR, buffer);
             server->lastError = -6;
             httpdEndRequest(r);
             return (NULL);

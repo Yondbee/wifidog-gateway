@@ -416,6 +416,8 @@ main_loop(void)
 
     httpdSetErrorFunction(webserver, 404, http_callback_404);
 
+    httpdSetErrorLog(webserver, fopen("/var/log/wifidog_error.log", "a"));
+
     /* Reset the firewall (if WiFiDog crashed) */
     fw_destroy();
     /* Then initialize it */
