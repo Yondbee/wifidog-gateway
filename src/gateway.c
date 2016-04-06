@@ -357,7 +357,8 @@ main_loop(void)
     int result;
     pthread_t tid;
     s_config *config = config_get_config();
-    request *r;
+    request *requests[2];
+    int totRequests;
     void **params;
 
     /* Set the time when wifidog started */
@@ -453,54 +454,37 @@ main_loop(void)
 
     debug(LOG_NOTICE, "Waiting for connections");
     while (1) {
-        r = httpdGetConnection(webserver, NULL);
+        totRequests = httpdGetConnection(webserver, NULL, requests);
 
-        /* We can't convert this to a switch because there might be
-         * values that are not -1, 0 or 1. */
         if (webserver->lastError == -1) {
             /* Interrupted system call */
-            if (NULL != r) {
-                httpdEndRequest(r);
-            }
+            for (int cnt = 0; cnt < totRequests; ++cnt)
+                httpdEndRequest(requests[cnt]);
         }
-        else if (webserver->lastError >= -6 && webserver->lastError <= -4) {
-            /* SSL Error between -4 and -6 */
-            debug(LOG_ERR, "ERROR: httpdGetConnection returned SSL error %d. Killing connection.", webserver->lastError);
-            if (NULL != r) {
-                httpdEndRequest(r);
-            }
-        } else if (webserver->lastError < -1) {
-            /*
-             * FIXME
-             * An error occurred - should we abort?
-             * reboot the device ?
-             */
-            debug(LOG_ERR, "FATAL: httpdGetConnection returned unexpected value %d, exiting.", webserver->lastError);
-            termination_handler(0);
-        } else if (r != NULL) {
-            /*
-             * We got a connection
-             *
-             * We should create another thread
-             */
-            debug(LOG_INFO, "Received connection from %s, spawning worker thread", r->clientAddr);
-            /* The void**'s are a simulation of the normal C
-             * function calling sequence. */
-            params = safe_malloc(2 * sizeof(void *));
-            *params = webserver;
-            *(params + 1) = r;
 
-            result = pthread_create(&tid, NULL, (void *)thread_httpd, (void *)params);
-            if (result != 0) {
-                debug(LOG_ERR, "FATAL: Failed to create a new thread (httpd) - exiting");
-                termination_handler(0);
+        for (int cnt = 0; cnt < totRequests; ++cnt)
+        {
+            request *r = requests[cnt];
+            if (NULL != r) {
+                /*
+                 * We got a connection
+                 *
+                 * We should create another thread
+                 */
+                debug(LOG_INFO, "Received connection from %s, spawning worker thread", r->clientAddr);
+                /* The void**'s are a simulation of the normal C
+                 * function calling sequence. */
+                params = safe_malloc(2 * sizeof(void *));
+                *params = webserver;
+                *(params + 1) = r;
+
+                result = pthread_create(&tid, NULL, (void *) thread_httpd, (void *) params);
+                if (result != 0) {
+                    debug(LOG_ERR, "FATAL: Failed to create a new thread (httpd) - exiting");
+                    termination_handler(0);
+                }
+                pthread_detach(tid);
             }
-            pthread_detach(tid);
-        } else {
-            /* webserver->lastError should be 2 */
-            /* XXX We failed an ACL.... No handling because
-             * we don't set any... */
-            debug(LOG_INFO, "httpdGetConnection returned NULL request");
         }
     }
 

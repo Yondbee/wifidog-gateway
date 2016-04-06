@@ -418,10 +418,11 @@ httpd *server;
     free(server);
 }
 
-request *
-httpdGetConnection(server, timeout)
+int
+httpdGetConnection(server, timeout, requests)
 httpd *server;
 struct timeval *timeout;
+request **requests;
 {
     int result, maxDesc, err;
     fd_set fds;
@@ -429,11 +430,17 @@ struct timeval *timeout;
     socklen_t addrLen;
     char *ipaddr;
     request *r;
+    int totRequests = 0;
+    char errBuf[128];
+
     /* Reset error */
     server->lastError = 0;
     FD_ZERO(&fds);
     FD_SET(server->serverSock, &fds);
     maxDesc = server->serverSock;
+
+    // max two requests, clear buffer
+    memset(requests, 0, sizeof(request *) * 2);
     
     /* SSL SOCKET SUPPORT */
 #ifdef USE_CYASSL
@@ -452,11 +459,11 @@ struct timeval *timeout;
         result = select(maxDesc + 1, &fds, 0, 0, timeout);
         if (result < 0) {
             server->lastError = -1;
-            return (NULL);
+            return 0;
         }
         if (timeout != 0 && result == 0) {
             server->lastError = 0;
-            return (NULL);
+            return 0;
         }
         if (result > 0) {
             break;
@@ -469,40 +476,50 @@ struct timeval *timeout;
     
         /* Allocate request struct */
         r = (request *) malloc(sizeof(request));
-        if (r == NULL) {
-            server->lastError = -3;
-            return (NULL);
-        }
-        memset((void *)r, 0, sizeof(request));
-        /* Get on with it */
-        bzero(&addr, sizeof(addr));
-        addrLen = sizeof(addr);
-        r->clientSock = accept(server->serverSock, (struct sockaddr *)&addr, &addrLen);
-        ipaddr = inet_ntoa(addr.sin_addr);
-        if (ipaddr) {
-            strncpy(r->clientAddr, ipaddr, HTTP_IP_ADDR_LEN);
-            r->clientAddr[HTTP_IP_ADDR_LEN - 1] = 0;
-        } else
-            *r->clientAddr = 0;
-        r->readBufRemain = 0;
-        r->readBufPtr = NULL;
-        
-        /*
-         ** Check the default ACL
-         */
-        if (server->defaultAcl) {
-            if (httpdCheckAcl(server, r, server->defaultAcl)
-                == HTTP_ACL_DENY) {
-                httpdEndRequest(r);
-                server->lastError = 2;
-                return (NULL);
+        if (r != NULL) {
+
+            memset((void *) r, 0, sizeof(request));
+            /* Get on with it */
+            bzero(&addr, sizeof(addr));
+            addrLen = sizeof(addr);
+            r->clientSock = accept(server->serverSock, (struct sockaddr *) &addr, &addrLen);
+            ipaddr = inet_ntoa(addr.sin_addr);
+            if (ipaddr) {
+                strncpy(r->clientAddr, ipaddr, HTTP_IP_ADDR_LEN);
+                r->clientAddr[HTTP_IP_ADDR_LEN - 1] = 0;
+            } else {
+                *r->clientAddr = 0;
+                r->readBufRemain = 0;
+                r->readBufPtr = NULL;
             }
+
+            /*
+             ** Check the default ACL
+             */
+            if (server->defaultAcl) {
+                if (httpdCheckAcl(server, r, server->defaultAcl)
+                    == HTTP_ACL_DENY) {
+
+                    snprintf(errBuf, 128, "Request from %s rejected because of ACL.", r->clientAddr);
+                    _httpd_writeErrorLog(server, r, LEVEL_ERROR, errBuf);
+
+                    httpdEndRequest(r);
+                    server->lastError = 2;
+                }
+            }
+            else
+                requests[totRequests++] = r;
         }
+        else
+        {
+            server->lastError = -3;
+        }
+
     }
 
 #ifdef USE_CYASSL
     // HTTPs socket
-    else if (FD_ISSET(server->sslSock, &fds))
+    if (FD_ISSET(server->sslSock, &fds))
     {
         char buffer[CYASSL_MAX_ERROR_SZ];
         
@@ -510,7 +527,7 @@ struct timeval *timeout;
         r = (request *) malloc(sizeof(request));
         if (r == NULL) {
             server->lastError = -3;
-            return (NULL);
+            return totRequests;
         }
         memset((void *)r, 0, sizeof(request));
         /* Get on with it */
@@ -527,7 +544,7 @@ struct timeval *timeout;
         r->readBufRemain = 0;
         r->readBufPtr = NULL;
         r->cyassl_obj = CyaSSL_new( cyassl_ctx );
-        
+
         if( r->cyassl_obj == NULL )
         {
             err = CyaSSL_get_error(r->cyassl_obj, 0);
@@ -535,9 +552,9 @@ struct timeval *timeout;
             _httpd_writeErrorLog(server, r, LEVEL_ERROR, buffer);
             server->lastError = -4;
             close(r->clientSock);
-            return (NULL);
+            return totRequests;
         }
-        
+
         err = CyaSSL_set_fd( r->cyassl_obj, r->clientSock );
         if (err != SSL_SUCCESS)
         {
@@ -546,43 +563,30 @@ struct timeval *timeout;
             _httpd_writeErrorLog(server, r, LEVEL_ERROR, buffer);
             server->lastError = -5;
             httpdEndRequest(r);
-            return (NULL);
+            return totRequests;
         }
-        
 
-        /*
-        err = CyaSSL_accept( r->cyassl_obj );
-        if (err != SSL_SUCCESS)
-        {
-            err = CyaSSL_get_error(r->cyassl_obj, 0);
-            CyaSSL_ERR_error_string(err, buffer);
-            _httpd_writeErrorLog(server, r, LEVEL_ERROR, buffer);
-            server->lastError = -6;
-            httpdEndRequest(r);
-            return (NULL);
-
-        } */
-        
         /*
          ** Check the default ACL
          */
         if (server->defaultAcl) {
             if (httpdCheckAcl(server, r, server->defaultAcl)
                 == HTTP_ACL_DENY) {
+
+                snprintf(errBuf, 128, "Request from %s rejected because of ACL.", r->clientAddr);
+                _httpd_writeErrorLog(server, r, LEVEL_ERROR, errBuf);
+
                 httpdEndRequest(r);
                 server->lastError = 2;
-                return (NULL);
+                return totRequests;
             }
         }
+
+        requests[totRequests++] = r;
     }
 #endif
-    else
-    {
-        // could not accept connection...
-        r = NULL;
-    }
     
-    return (r);
+    return totRequests;
 }
 
 int
