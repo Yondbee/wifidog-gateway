@@ -171,6 +171,7 @@ _httpd_writeAccessLog(httpd * server, request * r)
     fprintf(server->accessLog, "%s - - [%s] %s \"%s\" %d %d\n",
             r->clientAddr, dateBuf, httpdRequestMethodName(r),
             httpdRequestPath(r), responseCode, r->response.responseLength);
+    fflush(server->accessLog);
 }
 
 void
@@ -190,6 +191,7 @@ _httpd_writeErrorLog(httpd * server, request * r, char *level, char *message)
     } else {
         fprintf(server->errorLog, "[%s] [%s] %s\n", dateBuf, level, message);
     }
+    fflush(server->errorLog);
 }
 
 int
