@@ -462,7 +462,8 @@ main_loop(void)
                 httpdEndRequest(requests[cnt]);
         }
 
-        for (int cnt = 0; cnt < totRequests; ++cnt)
+        int cnt = 0;
+        for (; cnt < totRequests; ++cnt)
         {
             request *r = requests[cnt];
             if (NULL != r) {
