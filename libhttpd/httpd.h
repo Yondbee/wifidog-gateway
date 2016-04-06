@@ -149,7 +149,7 @@ extern "C" {
     } httpd;
 
     typedef struct {
-        int clientSock, readBufRemain;
+        int clientSock, readBufRemain, ssl;
         httpReq request;
         httpRes response;
         httpVar *variables;

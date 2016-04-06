@@ -40,6 +40,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <libhttpd/httpd.h>
 
 #include "httpd.h"
 
@@ -208,20 +209,34 @@ void
 http_send_redirect_to_auth(request * r, const char *urlFragment, const char *text)
 {
     char *protocol = NULL;
-    int port = 80;
+    int port = 0;
     t_auth_serv *auth_server = get_auth_server();
 
-    if (auth_server->authserv_use_ssl) {
+    /* if request comes in via SSL, goes out via SSL */
+    if (r->ssl == 1) {
         protocol = "https";
-        port = auth_server->authserv_ssl_port;
+
+        if (auth_server->authserv_ssl_port != 443)
+            port = auth_server->authserv_ssl_port;
+
     } else {
         protocol = "http";
-        port = auth_server->authserv_http_port;
+
+        if (auth_server->authserv_http_port != 80)
+            port = auth_server->authserv_http_port;
     }
 
     char *url = NULL;
-    safe_asprintf(&url, "%s://%s:%d%s%s",
-                  protocol, auth_server->authserv_hostname, port, auth_server->authserv_path, urlFragment);
+
+    /* dont specify port if default to default port */
+    if (port == 0)
+        safe_asprintf(&url, "%s://%s%s%s",
+                  protocol, auth_server->authserv_hostname, auth_server->authserv_path, urlFragment);
+    else
+        safe_asprintf(&url, "%s://%s:%d%s%s",
+                      protocol, auth_server->authserv_hostname, port, auth_server->authserv_path, urlFragment);
+
+
     http_send_redirect(r, url, text);
     free(url);
 }

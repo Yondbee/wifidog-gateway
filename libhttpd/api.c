@@ -483,6 +483,7 @@ request **requests;
             bzero(&addr, sizeof(addr));
             addrLen = sizeof(addr);
             r->clientSock = accept(server->serverSock, (struct sockaddr *) &addr, &addrLen);
+            r->ssl = 0;
             ipaddr = inet_ntoa(addr.sin_addr);
             if (ipaddr) {
                 strncpy(r->clientAddr, ipaddr, HTTP_IP_ADDR_LEN);
@@ -534,6 +535,7 @@ request **requests;
         bzero(&addr, sizeof(addr));
         addrLen = sizeof(addr);
         r->clientSock = accept(server->sslSock, (struct sockaddr *)&addr, &addrLen);
+        r->ssl = 1;
         ipaddr = inet_ntoa(addr.sin_addr);
         if (ipaddr) {
             strncpy(r->clientAddr, ipaddr, HTTP_IP_ADDR_LEN);
