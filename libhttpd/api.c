@@ -549,7 +549,8 @@ struct timeval *timeout;
             return (NULL);
         }
         
-        
+
+        /*
         err = CyaSSL_accept( r->cyassl_obj );
         if (err != SSL_SUCCESS)
         {
@@ -560,7 +561,7 @@ struct timeval *timeout;
             httpdEndRequest(r);
             return (NULL);
 
-        }
+        } */
         
         /*
          ** Check the default ACL
