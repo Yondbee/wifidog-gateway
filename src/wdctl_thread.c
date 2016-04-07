@@ -452,6 +452,9 @@ wdctl_auth(int fd, const char *arg)
     }
     else {
         debug(LOG_DEBUG, "Found node in database, assigning token ID");
+        if (node->token != NULL)
+            free(node->token);
+
         node->token = safe_strdup(split_args[2]);
     }
 
@@ -465,6 +468,9 @@ wdctl_auth(int fd, const char *arg)
                   "Successfully authorized client with MAC %s, IP %s and token %s\n",
                   node->mac, node->ip, node->token);
     write_to_socket(fd, tempstring, strlen(tempstring));
+
+    free(tempstring);
+    free(new_args);
 
     debug(LOG_DEBUG, "Exiting wdctl_auth...");
 }

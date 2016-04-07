@@ -297,6 +297,7 @@ wdctl_auth(void)
     sock = connect_to_server(config.socket);
 
     send_request(sock, request);
+    free(request);
 
     len = 0;
     memset(buffer, 0, sizeof(buffer));

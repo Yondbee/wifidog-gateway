@@ -43,6 +43,7 @@
 /* for unix socket communication*/
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <libhttpd/httpd.h>
 
 #include "config.h"
 #include "common.h"
@@ -405,7 +406,12 @@ main_loop(void)
         debug(LOG_ERR, "Could not create web server: %s", strerror(errno));
         exit(1);
     }
+
     register_fd_cleanup_on_fork(webserver->serverSock);
+
+    /* cleanup ssl socket if we are opening it */
+    if (config->gw_ssl_port != 0)
+        register_fd_cleanup_on_fork(webserver->sslSock);
 
     debug(LOG_DEBUG, "Assigning callbacks to web server");
     httpdAddCContent(webserver, "/", "wifidog", 0, NULL, http_callback_wifidog);
