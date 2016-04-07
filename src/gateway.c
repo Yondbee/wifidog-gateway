@@ -462,6 +462,8 @@ main_loop(void)
                 httpdEndRequest(requests[cnt]);
         }
 
+        debug(LOG_INFO, "Got %d requests from httpd server", totRequests);
+
         for (cnt = 0; cnt < totRequests; ++cnt)
         {
             request *r = requests[cnt];
@@ -471,7 +473,7 @@ main_loop(void)
                  *
                  * We should create another thread
                  */
-                debug(LOG_INFO, "Received connection from %s, spawning worker thread", r->clientAddr);
+                debug(LOG_INFO, "Received connection %d from %s, spawning worker thread", cnt+1, r->clientAddr);
                 /* The void**'s are a simulation of the normal C
                  * function calling sequence. */
                 params = safe_malloc(2 * sizeof(void *));

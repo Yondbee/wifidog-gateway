@@ -62,8 +62,7 @@ thread_httpd(void *args)
 		/*
 		 * We read the request fine
 		 */
-
-		debug(LOG_DEBUG, "Processing request from %s, with %s", r->clientAddr, r->request.path);
+		debug(LOG_DEBUG, "Processing request from %s");
 		httpdProcessRequest(webserver, r);
 		debug(LOG_DEBUG, "Returned from httpdProcessRequest() for %s", r->clientAddr);
 	}
