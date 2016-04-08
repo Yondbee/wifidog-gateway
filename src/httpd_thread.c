@@ -45,7 +45,7 @@
 #include "client_list.h"
 
 void
-cleanup_function(void *args)
+thread_httpd_cleanup_function(void *args)
 {
 	/* unlock client list just in case */
 	UNLOCK_CLIENT_LIST();
@@ -71,7 +71,7 @@ thread_httpd(void *args)
 	webserver = *params;
 	r = *(params + 1);
 
-	pthread_cleanup_push(cleanup_function, r);
+	pthread_cleanup_push(thread_httpd_cleanup_function, r);
 
 	free(params); /* XXX We must release this ourselves. */
 

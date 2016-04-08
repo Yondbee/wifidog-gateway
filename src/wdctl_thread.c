@@ -159,6 +159,14 @@ thread_wdctl(void *arg)
     }
 }
 
+void
+thread_wdctl_cleanup_function(void *args)
+{
+    /* unlock client list just in case */
+    UNLOCK_CLIENT_LIST();
+
+}
+
 static void *
 thread_wdctl_handler(void *arg)
 {
@@ -166,6 +174,8 @@ thread_wdctl_handler(void *arg)
     char request[MAX_BUF];
     size_t read_bytes, i;
     ssize_t len;
+
+    pthread_cleanup_push(thread_wdctl_cleanup_function, NULL);
 
     debug(LOG_DEBUG, "Entering thread_wdctl_handler....");
 
@@ -219,6 +229,8 @@ thread_wdctl_handler(void *arg)
     shutdown(fd, 2);
     close(fd);
     debug(LOG_DEBUG, "Exiting thread_wdctl_handler....");
+
+    pthread_cleanup_pop(0);
 
     return NULL;
 }
@@ -436,8 +448,9 @@ wdctl_auth(int fd, const char *arg)
     LOCK_CLIENT_LIST();
 
     /* We get the node or insert a new one... */
-    if ((node = client_list_find_by_mac(split_args[0])) != NULL) ;
-    else ((node = client_list_find_by_ip(split_args[1])) != NULL) ;
+    node = client_list_find_by_mac(split_args[0]);
+    if (NULL == node)
+        node = client_list_find_by_ip(split_args[1]);
 
     // add client if missing
     if (NULL == node) {

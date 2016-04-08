@@ -301,11 +301,11 @@ wdctl_auth(void)
 
     len = 0;
     memset(buffer, 0, sizeof(buffer));
-    while ((len < sizeof(buffer)) && ((rlen = read(sock, (buffer + len), (sizeof(buffer) - len))) > 0)) {
-        len += (size_t) rlen;
-    }
 
-    fprintf(stdout, buffer);
+    while ((len = read(sock, buffer, sizeof(buffer) - 1)) > 0) {
+        buffer[len] = '\0';
+        fprintf(stdout, "%s", buffer);
+    }
 
     shutdown(sock, 2);
     close(sock);
