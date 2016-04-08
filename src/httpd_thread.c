@@ -42,6 +42,20 @@
 #include "common.h"
 #include "debug.h"
 #include "httpd_thread.h"
+#include "client_list.h"
+
+void
+cleanup_function(void *args)
+{
+	/* unlock client list just in case */
+	UNLOCK_CLIENT_LIST();
+
+	request *r = (request *)args;
+
+	debug(LOG_DEBUG, "Closing connection with %s", r->clientAddr);
+	httpdEndRequest(r);
+
+}
 
 /** Main request handling thread.
 @param args Two item array of void-cast pointers to the httpd and request struct
@@ -49,15 +63,18 @@
 void
 thread_httpd(void *args)
 {
-	void	**params;
-	httpd	*webserver;
-	request	*r;
-	
-	params = (void **)args;
+	void **params;
+	httpd *webserver;
+	request *r;
+
+	params = (void **) args;
 	webserver = *params;
 	r = *(params + 1);
+
+	pthread_cleanup_push(cleanup_function, r);
+
 	free(params); /* XXX We must release this ourselves. */
-	
+
 	if (httpdReadRequest(webserver, r) == 0) {
 		/*
 		 * We read the request fine
@@ -66,9 +83,10 @@ thread_httpd(void *args)
 		httpdProcessRequest(webserver, r);
 		debug(LOG_DEBUG, "Returned from httpdProcessRequest() for %s", r->clientAddr);
 	}
-	else {
+	else
+	{
 		debug(LOG_DEBUG, "No valid request received from %s", r->clientAddr);
 	}
-	debug(LOG_DEBUG, "Closing connection with %s", r->clientAddr);
-	httpdEndRequest(r);
+
+	pthread_cleanup_pop(0);
 }
