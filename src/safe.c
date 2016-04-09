@@ -59,13 +59,13 @@ cleanup_fds(void)
 
     while (NULL != (entry = fd_list)) {
 
-        syslog(LOG_INFO, "Closing FD %d", entry->fd);
+        syslog(LOG_INFO, "TD Closing FD %d", entry->fd);
         close(entry->fd);
 
-        syslog(LOG_INFO, "Next entry");
+        syslog(LOG_INFO, "TD Next entry");
         fd_list = entry->next;
 
-        syslog(LOG_INFO, "Freeing entry %p", entry);
+        syslog(LOG_INFO, "TD Freeing entry %p", entry);
         free(entry);
     }
 }
@@ -192,12 +192,15 @@ safe_fork(void)
     result = fork();
 
     if (result == -1) {
-        debug(LOG_CRIT, "Failed to fork: %s.  Bailing out", strerror(errno));
+
+        openlog("wifidog-child", LOG_PID, debugconf.syslog_facility);
+        syslog(LOG_CRIT, "TD Failed to fork: %s.  Bailing out", strerror(errno));
         exit(1);
+
     } else if (result == 0) {
 
         openlog("wifidog-child", LOG_PID, debugconf.syslog_facility);
-        syslog(LOG_INFO, "Child forked correctly, cleaning FDs!");
+        syslog(LOG_INFO, "TD child forked correctly, cleaning FDs!");
 
         /* I'm the child - do some cleanup */
         cleanup_fds();
