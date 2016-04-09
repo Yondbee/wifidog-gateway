@@ -115,9 +115,8 @@ execute(const char *cmd_line, int quiet)
     pid = safe_fork();
     if (pid == 0) {             /* for the child process:         */
 
-        openlog("wifidog-child", LOG_PID, debugconf.syslog_facility);
-
         syslog(LOG_INFO, "TD Starting child process");
+
 
         /* We don't want to see any errors if quiet flag is on */
         if (quiet) {
@@ -125,8 +124,13 @@ execute(const char *cmd_line, int quiet)
             close(2);
         }
 
-        debug(LOG_INFO, "TD Executing command");
-        if (execvp(WD_SHELL_PATH, (char *const *)new_argv) == -1) { /* execute the command  */
+        syslog(LOG_INFO, "TD Executing command");
+        closelog();
+
+        int result = execvp(WD_SHELL_PATH, (char *const *)new_argv);
+
+        openlog("wifidog-child", LOG_PID, debugconf.syslog_facility);
+        if (result == -1) { /* execute the command  */
             syslog(LOG_ERR, "TD execvp(): %s", strerror(errno));
         } else {
             syslog(LOG_ERR, "TD execvp(): failed");
