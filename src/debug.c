@@ -31,8 +31,11 @@
 #include <time.h>
 #include <unistd.h>
 #include <signal.h>
+#include <pthread.h>
 
 #include "debug.h"
+#include "common.h"
+#include "safe.h"
 
 debugconf_t debugconf = {
     .debuglevel = LOG_INFO,
@@ -47,11 +50,13 @@ void
 _debug(const char *filename, int line, int level, const char *format, ...)
 {
     char buf[28];
+    char log_buffer[MAX_BUF];
     va_list vlist;
     time_t ts;
     sigset_t block_chld;
 
     time(&ts);
+    pthread_t myt = pthread_self();
 
     if (debugconf.debuglevel >= level) {
         sigemptyset(&block_chld);
@@ -77,7 +82,11 @@ _debug(const char *filename, int line, int level, const char *format, ...)
         if (debugconf.log_syslog) {
             openlog("wifidog", LOG_PID, debugconf.syslog_facility);
             va_start(vlist, format);
-            vsyslog(level, format, vlist);
+
+            /* log thread id on syslog */
+            vsnprintf(log_buffer, MAX_BUF, format, vlist);
+            syslog(level, "[T%lu] %s", myt, log_buffer);
+
             va_end(vlist);
             closelog();
         }

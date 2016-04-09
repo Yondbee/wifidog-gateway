@@ -475,11 +475,13 @@ wdctl_auth(int fd, const char *arg)
     /* allow */
     fw_allow(node, FW_MARK_KNOWN);
 
-    UNLOCK_CLIENT_LIST();
-
     safe_asprintf(&tempstring,
                   "Successfully authorized client with MAC %s, IP %s and token %s\n",
                   node->mac, node->ip, node->token);
+
+    UNLOCK_CLIENT_LIST();
+
+
     write_to_socket(fd, tempstring, strlen(tempstring));
 
     free(tempstring);

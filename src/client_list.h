@@ -111,15 +111,15 @@ void client_list_remove(t_client *);
 void client_free_node(t_client *);
 
 #define LOCK_CLIENT_LIST() do { \
-	debug(LOG_DEBUG, "Locking client list"); \
+	debug(LOG_INFO, "Locking client list"); \
 	pthread_mutex_lock(&client_list_mutex); \
-	debug(LOG_DEBUG, "Client list locked"); \
+	debug(LOG_INFO, "Client list locked"); \
 } while (0)
 
 #define UNLOCK_CLIENT_LIST() do { \
-	debug(LOG_DEBUG, "Unlocking client list"); \
+	debug(LOG_INFO, "Unlocking client list"); \
 	pthread_mutex_unlock(&client_list_mutex); \
-	debug(LOG_DEBUG, "Client list unlocked"); \
+	debug(LOG_INFO, "Client list unlocked"); \
 } while (0)
 
 #endif                          /* _CLIENT_LIST_H_ */
