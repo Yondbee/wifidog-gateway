@@ -190,14 +190,15 @@ safe_fork(void)
 
     if (result == -1) {
 
-        openlog("wifidog-child", LOG_PID, debugconf.syslog_facility);
-        syslog(LOG_CRIT, "TD Failed to fork: %s.  Bailing out", strerror(errno));
+        //openlog("wifidog-child", LOG_PID, debugconf.syslog_facility);
+        //syslog(LOG_CRIT, "TD Failed to fork: %s.  Bailing out", strerror(errno));
+        //closelog();
         exit(1);
 
     } else if (result == 0) {
 
-        openlog("wifidog-child", LOG_PID, debugconf.syslog_facility);
-        syslog(LOG_INFO, "TD child forked correctly, cleaning FDs!");
+        //openlog("wifidog-child", LOG_PID, debugconf.syslog_facility);
+        //syslog(LOG_INFO, "TD child forked correctly, cleaning FDs!");
 
         /* I'm the child - do some cleanup */
         cleanup_fds();

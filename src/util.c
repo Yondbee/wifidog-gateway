@@ -115,17 +115,17 @@ execute(const char *cmd_line, int quiet)
     pid = safe_fork();
     if (pid == 0) {             /* for the child process:         */
 
-        syslog(LOG_INFO, "TD Starting child process");
+        //syslog(LOG_INFO, "TD Starting child process");
 
 
         /* We don't want to see any errors if quiet flag is on */
         if (quiet) {
-            syslog(LOG_INFO, "TD Closing FD 2");
+          //  syslog(LOG_INFO, "TD Closing FD 2");
             close(2);
         }
 
-        syslog(LOG_INFO, "TD Executing command");
-        closelog();
+        //syslog(LOG_INFO, "TD Executing command");
+        //closelog();
 
         int result = execvp(WD_SHELL_PATH, (char *const *)new_argv);
 
