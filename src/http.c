@@ -236,7 +236,7 @@ http_send_redirect_to_auth(request * r, const char *urlFragment, const char *tex
         safe_asprintf(&url, "%s://%s:%d%s%s",
                       protocol, auth_server->authserv_hostname, port, auth_server->authserv_path, urlFragment);
 
-
+    debug(LOG_INFO, "TD http_send_redirect_to_auth About to redirect to %s", url);
     http_send_redirect(r, url, text);
     free(url);
 }
@@ -252,7 +252,7 @@ http_send_redirect(request * r, const char *url, const char *text)
     char *header = NULL;
     char *response = NULL;
     /* Re-direct them to auth server */
-    debug(LOG_DEBUG, "Redirecting client browser to %s", url);
+    debug(LOG_INFO, "http_send_redirect1- Redirecting client browser to %s", url);
     safe_asprintf(&header, "Location: %s", url);
     safe_asprintf(&response, "302 %s\n", text ? text : "Redirecting");
     httpdSetResponse(r, response);
@@ -260,6 +260,7 @@ http_send_redirect(request * r, const char *url, const char *text)
     free(response);
     free(header);
     safe_asprintf(&message, "Please <a href='%s'>click here</a>.", url);
+    debug(LOG_INFO, "http_send_redirect2- All ready");
     send_http_page(r, text ? text : "Redirection to message", message);
     free(message);
 }
@@ -365,6 +366,7 @@ send_http_page(request * r, const char *title, const char *message)
         close(fd);
         return;
     }
+
     // Cast from long to unsigned int
     buffer = (char *)safe_malloc((size_t) stat_info.st_size + 1);
     written = read(fd, buffer, (size_t) stat_info.st_size);

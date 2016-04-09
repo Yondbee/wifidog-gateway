@@ -74,15 +74,17 @@ fw_allow(t_client * client, int new_fw_connection_state)
     int result;
     int old_state = client->fw_connection_state;
 
-    debug(LOG_DEBUG, "Allowing %s %s with fw_connection_state %d", client->ip, client->mac, new_fw_connection_state);
+
     client->fw_connection_state = new_fw_connection_state;
 
     /* Grant first */
+    debug(LOG_INFO, "TD fw_allow1- Allowing %s %s with fw_connection_state %d", client->ip, client->mac, new_fw_connection_state);
     result = iptables_fw_access(FW_ACCESS_ALLOW, client->ip, client->mac, new_fw_connection_state);
+    debug(LOG_INFO, "TD fw_allow2- Allowed");
 
     /* Deny after if needed. */
     if (old_state != FW_MARK_NONE) {
-        debug(LOG_DEBUG, "Clearing previous fw_connection_state %d", old_state);
+        debug(LOG_INFO, "TD fw_allow3- Clearing previous fw_connection_state %d", old_state);
         _fw_deny_raw(client->ip, client->mac, old_state);
     }
 

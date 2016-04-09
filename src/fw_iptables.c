@@ -105,16 +105,16 @@ iptables_do_command(const char *format, ...)
 
     iptables_insert_gateway_id(&cmd);
 
-    debug(LOG_DEBUG, "Executing command: %s", cmd);
-
+    debug(LOG_INFO, "TD iptables_do_command1- Executing command: %s", cmd);
     rc = execute(cmd, fw_quiet);
+    debug(LOG_INFO, "TD iptables_do_command2- Executed");
 
     if (rc != 0) {
         // If quiet, do not display the error
         if (fw_quiet == 0)
-            debug(LOG_ERR, "iptables command failed(%d): %s", rc, cmd);
+            debug(LOG_ERR, "TD iptables command failed(%d): %s", rc, cmd);
         else if (fw_quiet == 1)
-            debug(LOG_DEBUG, "iptables command failed(%d): %s", rc, cmd);
+            debug(LOG_INFO, "TD iptables command failed(%d): %s", rc, cmd);
     }
 
     free(cmd);
@@ -592,9 +592,14 @@ iptables_fw_access(fw_access_t type, const char *ip, const char *mac, int tag)
 
     switch (type) {
     case FW_ACCESS_ALLOW:
+
+        debug(LOG_INFO, "TD iptables_fw_access1- Allowing %s %s %d", ip, mac, tag);
         iptables_do_command("-t mangle -A " CHAIN_OUTGOING " -s %s -m mac --mac-source %s -j MARK --set-mark %d", ip,
                             mac, tag);
+        debug(LOG_INFO, "TD iptables_fw_access2- Allowed, accepting");
         rc = iptables_do_command("-t mangle -A " CHAIN_INCOMING " -d %s -j ACCEPT", ip);
+        debug(LOG_INFO, "TD iptables_fw_access3- Accepted");
+
         break;
     case FW_ACCESS_DENY:
         /* XXX Add looping to really clear? */

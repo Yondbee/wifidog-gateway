@@ -118,17 +118,17 @@ execute(const char *cmd_line, int quiet)
         if (quiet)
             close(2);
         if (execvp(WD_SHELL_PATH, (char *const *)new_argv) == -1) { /* execute the command  */
-            debug(LOG_ERR, "execvp(): %s", strerror(errno));
+            debug(LOG_ERR, "TD execvp(): %s", strerror(errno));
         } else {
-            debug(LOG_ERR, "execvp() failed");
+            debug(LOG_ERR, "TD execvp() failed");
         }
         exit(1);
     }
 
     /* for the parent:      */
-    debug(LOG_DEBUG, "Waiting for PID %d to exit", pid);
+    debug(LOG_INFO, "TD Waiting for PID %d to exit", pid);
     rc = waitpid(pid, &status, 0);
-    debug(LOG_DEBUG, "Process PID %d exited", rc);
+    debug(LOG_INFO, "TD Process PID %d exited", rc);
     
     if (-1 == rc) {
         debug(LOG_ERR, "waitpid() failed (%s)", strerror(errno));
@@ -139,7 +139,7 @@ execute(const char *cmd_line, int quiet)
         return (WEXITSTATUS(status));
     } else {
         /* If we get here, child did not exit cleanly. Will return non-zero exit code to caller*/
-        debug(LOG_DEBUG, "Child may have been killed.");
+        debug(LOG_DEBUG, "TD Child may have been killed.");
         return 1;
     }
 }
