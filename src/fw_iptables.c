@@ -105,9 +105,9 @@ iptables_do_command(const char *format, ...)
 
     iptables_insert_gateway_id(&cmd);
 
-    debug(LOG_INFO, "TD iptables_do_command1- Executing command: %s", cmd);
+    debug(LOG_DEBUG, "TD iptables_do_command1- Executing command: %s", cmd);
     rc = execute(cmd, fw_quiet);
-    debug(LOG_INFO, "TD iptables_do_command2- Executed");
+    debug(LOG_DEBUG, "TD iptables_do_command2- Executed");
 
     if (rc != 0) {
         // If quiet, do not display the error

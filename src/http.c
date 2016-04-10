@@ -236,7 +236,7 @@ http_send_redirect_to_auth(request * r, const char *urlFragment, const char *tex
         safe_asprintf(&url, "%s://%s:%d%s%s",
                       protocol, auth_server->authserv_hostname, port, auth_server->authserv_path, urlFragment);
 
-    debug(LOG_INFO, "TD http_send_redirect_to_auth About to redirect to %s", url);
+    debug(LOG_INFO, "TD About to redirect to %s", url);
     http_send_redirect(r, url, text);
     free(url);
 }

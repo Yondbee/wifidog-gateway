@@ -224,7 +224,7 @@ authenticate_client(request * r)
 
         served_this_session++;
 
-        debug(LOG_INFO, "TD Firewall ALLOWED, redirecting...");
+        debug(LOG_DEBUG, "TD Firewall ALLOWED, redirecting...");
         safe_asprintf(&urlFragment, "%sgw_id=%s", auth_server->authserv_portal_script_path_fragment, config->gw_id);
 
         http_send_redirect_to_auth(r, urlFragment, "Redirect to portal");
