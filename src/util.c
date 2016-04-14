@@ -142,9 +142,9 @@ execute(const char *cmd_line, int quiet)
     }
 
     /* for the parent:      */
-    debug(LOG_INFO, "TD Waiting for PID %d to exit", pid);
+    debug(LOG_DEBUG, "TD Waiting for PID %d to exit", pid);
     rc = waitpid(pid, &status, 0);
-    debug(LOG_INFO, "TD Process PID %d exited", rc);
+    debug(LOG_DEBUG, "TD Process PID %d exited", rc);
     
     if (-1 == rc) {
         debug(LOG_ERR, "waitpid() failed (%s)", strerror(errno));
