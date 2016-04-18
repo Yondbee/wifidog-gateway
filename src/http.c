@@ -216,13 +216,13 @@ http_send_redirect_to_auth(request * r, const char *urlFragment, const char *tex
     if (r->ssl == 1) {
         protocol = "https";
 
-        if (auth_server->authserv_ssl_port != 443)
+        //if (auth_server->authserv_ssl_port != 443)
             port = auth_server->authserv_ssl_port;
 
     } else {
         protocol = "http";
 
-        if (auth_server->authserv_http_port != 80)
+        //if (auth_server->authserv_http_port != 80)
             port = auth_server->authserv_http_port;
     }
 
