@@ -252,7 +252,6 @@ http_send_redirect(request * r, const char *url, const char *text)
     char *header = NULL;
     char *response = NULL;
     /* Re-direct them to auth server */
-    debug(LOG_INFO, "http_send_redirect1- Redirecting client browser to %s", url);
     safe_asprintf(&header, "Location: %s", url);
     safe_asprintf(&response, "302 %s\n", text ? text : "Redirecting");
     httpdSetResponse(r, response);
@@ -260,7 +259,6 @@ http_send_redirect(request * r, const char *url, const char *text)
     free(response);
     free(header);
     safe_asprintf(&message, "Please <a href='%s'>click here</a>.", url);
-    debug(LOG_INFO, "http_send_redirect2- All ready");
     send_http_page(r, text ? text : "Redirection to message", message);
     free(message);
 }

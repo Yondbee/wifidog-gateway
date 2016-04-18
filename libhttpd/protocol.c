@@ -520,7 +520,7 @@ _httpd_send404(httpd * server, request * r)
 {
     char msg[HTTP_MAX_URL];
 
-    snprintf(msg, HTTP_MAX_URL, "File does not exist: %s\n", r->request.path);
+    snprintf(msg, HTTP_MAX_URL, "File does not exist: %s", r->request.path);
     _httpd_writeErrorLog(server, r, LEVEL_ERROR, msg);
 
     if (server->errorFunction404) {
